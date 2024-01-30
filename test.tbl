@@ -1,0 +1,7 @@
+# This is a comment
+{
+1 + 2;  # expression
+a(123, 456, hello + 5);
+# let a: int = 5;  # let definition
+# const b: str = "hello";  # const definition
+}

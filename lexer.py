@@ -23,7 +23,7 @@ class TokenType(IntEnum):
     COMMA = auto()  # ,
     PLUS = auto()  # +
     MINUS = auto()  # -
-    TIMES = auto()  # *
+    STAR = auto()  # *
     DIVIDE = auto()  # /
     EQUALS = auto()  # =
     DOUBLE_EQUALS = auto()  # ==
@@ -35,7 +35,7 @@ class TokenType(IntEnum):
     # TODO: Add bitwise
     COLON = auto()  # :
     SEMICOLON = auto()  # ;
-    STAR = auto()  # *
+    AMPERSAND = auto()  # &
     APOSTROPHE = auto()  # '
     EOF = auto()
     # Keywords
@@ -275,7 +275,10 @@ class Lexer:
                 return Token(TokenType.MINUS, loc, "-")
             case "*":
                 self.advance()
-                return Token(TokenType.TIMES, loc, "*")
+                return Token(TokenType.STAR, loc, "*")
+            case "*":
+                self.advance()
+                return Token(TokenType.AMPERSAND, loc, "&")
             case "/":
                 self.advance()
                 return Token(TokenType.DIVIDE, loc, "/")
@@ -288,9 +291,6 @@ class Lexer:
                     return Token(TokenType.EQUALS, loc, "=")
             case '"':
                 return self.consume_string(loc)
-            case "*":
-                self.advance()
-                return Token(TokenType.STAR, loc, "*")
             case c if c.isdigit():
                 return self.consume_number(loc)
             case c if c.isalpha() or c == "_":

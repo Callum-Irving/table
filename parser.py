@@ -89,23 +89,6 @@ def parse_args(lexer: Lexer) -> list[Expr] | TableError:
     return args
 
 
-# def parse_funcall(lexer: Lexer) -> Expr | TableError:
-#     """
-#     Parse function call.
-#
-#     <funcall> ::= <ident> <args>
-#     """
-#     func_name = parse_name_expr(lexer)
-#     if isinstance(func_name, TableError):
-#         return func_name
-#
-#     args = parse_args(lexer)
-#     if isinstance(args, TableError):
-#         return args
-#
-#     return FunCall(func_name, args)
-
-
 def parse_name_expr(lexer: Lexer) -> Expr | TableError:
     """
     Parse a name expression.
@@ -126,7 +109,7 @@ def parse_factor(lexer: Lexer) -> Expr | TableError:
     """
     Parse a factor.
 
-    <factor> ::= "(" <expr> ")" | <funcall> | <ident> | <num> | <str>
+    <factor> ::= "(" <expr> ")" | <ident> | <num> | <str>
     """
     tok = lexer.peek()
     if isinstance(tok, TableError):
@@ -149,19 +132,20 @@ def parse_factor(lexer: Lexer) -> Expr | TableError:
             return expr
         case TokenType.IDENT:
             name = parse_name_expr(lexer)
-            if isinstance(name, TableError):
-                return name
-
+            return name
+            # if isinstance(name, TableError):
+            #     return name
+            #
             # Determines if name or function call
-            tok = lexer.peek()
-            if isinstance(tok, Token) and tok.typ == TokenType.L_PAREN:
-                # Parse function call
-                args = parse_args(lexer)
-                if isinstance(args, TableError):
-                    return args
-                return FunCall(name, args)
-            else:
-                return name
+            # tok = lexer.peek()
+            # if isinstance(tok, Token) and tok.typ == TokenType.L_PAREN:
+            #     # Parse function call
+            #     args = parse_args(lexer)
+            #     if isinstance(args, TableError):
+            #         return args
+            #     return FunCall(name, args)
+            # else:
+            #     return name
         case TokenType.INT_LIT:
             tok = lexer.next_token()
             if isinstance(tok, TableError):
@@ -169,7 +153,37 @@ def parse_factor(lexer: Lexer) -> Expr | TableError:
             assert isinstance(tok.val, int), "int literal with non-int value"
             return LiteralExpr(tok.val)
         case other:
-            return TableError(f"Unexpected token: {other!r}", lexer.loc)
+            return TableError(f"Unexpected token: {other!r}", tok.loc)
+
+
+def parse_unary(lexer: Lexer) -> Expr | TableError:
+    # TODO: implement
+    return parse_factor(lexer)
+
+
+def parse_funcall(lexer: Lexer) -> Expr | TableError:
+    """
+    Parse function call.
+
+    <funcall> ::= <unary> <args> | <unary>
+    """
+    # TODO: use funcall ::= <unary> (<args>)* to support calling a function
+    # returned by another function
+    # Example: retfun()()
+    func_name = parse_unary(lexer)
+    if isinstance(func_name, TableError):
+        return func_name
+
+    next_tok = lexer.peek()
+    if isinstance(next_tok, TableError):
+        return next_tok
+    elif next_tok.typ == TokenType.L_PAREN:
+        args = parse_args(lexer)
+        if isinstance(args, TableError):
+            return args
+        return FunCall(func_name, args)
+    else:
+        return func_name
 
 
 def parse_term(lexer: Lexer) -> Expr | TableError:
@@ -178,7 +192,7 @@ def parse_term(lexer: Lexer) -> Expr | TableError:
 
     <term> ::= <factor> (("*" | "/") <factor>)*
     """
-    factor = parse_factor(lexer)
+    factor = parse_funcall(lexer)
     if isinstance(factor, TableError):
         return factor
 
@@ -186,17 +200,17 @@ def parse_term(lexer: Lexer) -> Expr | TableError:
     if isinstance(next_tok, TableError):
         return next_tok
 
-    while next_tok.typ == TokenType.TIMES or next_tok.typ == TokenType.DIVIDE:
+    while next_tok.typ == TokenType.STAR or next_tok.typ == TokenType.DIVIDE:
         plus_or_minus = lexer.next_token()
         if isinstance(plus_or_minus, TableError):
             return plus_or_minus
 
-        next_factor = parse_factor(lexer)
+        next_factor = parse_funcall(lexer)
         if isinstance(next_factor, TableError):
             return next_factor
 
         op = None
-        if plus_or_minus.typ == TokenType.TIMES:
+        if plus_or_minus.typ == TokenType.STAR:
             op = BinOp.TIMES
         elif plus_or_minus == TokenType.DIVIDE:
             op = BinOp.DIVIDE
