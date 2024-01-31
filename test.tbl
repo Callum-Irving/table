@@ -1,7 +1,10 @@
 import std.io;
 
 interface ToString {
-    fun to_string(): str;
+    fun to_string(): str;	
+
+    # Pointer type:
+    fun get_ptr(): *self;
 }
 
 

@@ -78,8 +78,8 @@ class DefType(IntEnum):
 @dataclass
 class TableType:
     typ: TableTypeEnum
-    # For user-defined types only:
-    value: list[str] | None = None
+    # TableType for pointers and arrays, list[str] for user defined type
+    value: TableType | list[str] | None = None
 
 
 class TableTypeEnum(IntEnum):
@@ -87,6 +87,8 @@ class TableTypeEnum(IntEnum):
     FLOAT = auto()
     STR = auto()
     NONE = auto()
+    ARRAY = auto()
+    PTR = auto()
     USER_DEFINED = auto()
 
 
@@ -381,10 +383,10 @@ def parse_expr(lexer: Lexer) -> Expr:
         return AssignExpr(first_expr, value)
 
 
-def parse_type_name(lexer: Lexer) -> TableType:
+def parse_type(lexer: Lexer) -> TableType:
     """Parse a type name.
 
-    ``<type> ::= "int" | "float" | "str" | <ident> ("." <ident>)*``
+    ``<type> ::= "[" <type> "]" | "*" <type> | <ident> ("." <ident>)* | "int" | "float" | "str"``
 
     :param lexer: The lexer to parse from.
     :raises TableError: Raised if parsing fails.
@@ -393,7 +395,14 @@ def parse_type_name(lexer: Lexer) -> TableType:
     .. warning:: Mutates lexer.
     """
     tok = lexer.next_token()
-    if tok.typ == TokenType.INT:
+    if tok.typ == TokenType.L_SQUARE:
+        inner = parse_type(lexer)
+        _ = lexer.expect_type(TokenType.R_SQUARE)
+        return TableType(TableTypeEnum.ARRAY, inner)
+    elif tok.typ == TokenType.STAR:
+        inner = parse_type(lexer)
+        return TableType(TableTypeEnum.PTR, inner)
+    elif tok.typ == TokenType.INT:
         return TableType(TableTypeEnum.INT)
     elif tok.typ == TokenType.FLOAT:
         return TableType(TableTypeEnum.FLOAT)
@@ -426,7 +435,7 @@ def parse_binding(lexer: Lexer) -> Binding:
     """
     name = lexer.expect_type(TokenType.IDENT)
     _ = lexer.expect_type(TokenType.COLON)
-    binding_type = parse_type_name(lexer)
+    binding_type = parse_type(lexer)
     assert isinstance(name.val, str), "ident value must be string"
     return Binding(name.val, binding_type)
 
@@ -623,7 +632,7 @@ def parse_named_fun_sig(lexer: Lexer) -> tuple[str, FunSig]:
     return_type = TableType(TableTypeEnum.NONE)
     if lexer.peek().typ == TokenType.COLON:
         _ = lexer.expect_type(TokenType.COLON)
-        return_type = parse_type_name(lexer)
+        return_type = parse_type(lexer)
     sig = FunSig(params, return_type)
 
     return (name.val, sig)

@@ -9,11 +9,8 @@ A programming language that aims to have:
 ## TODO
 
 - [ ] Parse generics
-- [ ] Parse traits
 - [ ] Parse structs
-- [ ] Parse pointer types
-- [ ] Add arrays
-    - Should array types be `int[]` or `[int]`?
+- [ ] Parse array literals
 - [ ] Add tuples?
 - [ ] Submodules?
     - Like Rust's mod
