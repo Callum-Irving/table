@@ -3,7 +3,7 @@ from enum import IntEnum, auto
 from dataclasses import dataclass
 
 from error import TableError
-from lexer import Lexer, Token, TokenType
+from lexer import Lexer, TokenType
 
 
 class BinOp(IntEnum):
@@ -37,13 +37,24 @@ class IdentExpr:
 
 
 @dataclass
+class NameExpr:
+    """Expressions like std.io
+
+    In this example, `std` is the name and `io` is the subname.
+    """
+
+    name: Expr
+    subname: str
+
+
+@dataclass
 class AssignExpr:
     name: Expr
     value: Expr
 
 
 # union type for expression
-Expr = AssignExpr | BinExpr | LiteralExpr | FunCall | IdentExpr
+Expr = AssignExpr | BinExpr | LiteralExpr | FunCall | IdentExpr | NameExpr
 
 
 class DefStmt:
@@ -154,10 +165,14 @@ def parse_name_expr(lexer: Lexer) -> Expr:
     Raises:
         TableError: If parsing failed.
     """
+    expr = parse_factor(lexer)
+    while lexer.peek().typ == TokenType.DOT:
+        _ = lexer.expect_type(TokenType.DOT)
+        ident = lexer.expect_type(TokenType.IDENT)
+        assert isinstance(ident.val, str), "ident val should be str"
+        expr = NameExpr(expr, ident.val)
 
-    # TODO: implement dot separated list of idents
-    name = parse_factor(lexer)
-    return name
+    return expr
 
 
 def parse_unary(lexer: Lexer) -> Expr:
