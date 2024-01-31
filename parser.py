@@ -34,6 +34,7 @@ class UnaryExpr:
 
 @dataclass
 class LiteralExpr:
+    # NOTE: Add type information?
     val: int | float | str
 
 
@@ -366,6 +367,7 @@ def parse_def(lexer: Lexer) -> Stmt:
     Raises:
         TableError: If parsing failed.
     """
+    # TODO: Implement
     assert False, "not implemented: parse def stmt"
 
 
@@ -419,10 +421,9 @@ def parse_stmt(lexer: Lexer) -> Stmt:
     """
     next_tok = lexer.peek()
 
-    if next_tok.typ == TokenType.LET:
-        assert False, "not implemented: let def"
-    elif next_tok.typ == TokenType.CONST:
-        assert False, "not implemented: const def"
+    if next_tok.typ == TokenType.LET or next_tok.typ == TokenType.CONST:
+        def_stmt = parse_def(lexer)
+        return def_stmt
     elif next_tok.typ == TokenType.L_BRACK:
         block_stmt = parse_block_stmt(lexer)
         return block_stmt

@@ -56,6 +56,23 @@ class TokenType(IntEnum):
         return self._name_
 
 
+# Map of keyword strings to tokens
+KEYWORD_DICT = {
+    "if": TokenType.IF,
+    "else": TokenType.ELSE,
+    "for": TokenType.FOR,
+    "while": TokenType.WHILE,
+    "return": TokenType.RETURN,
+    "struct": TokenType.STRUCT,
+    "fun": TokenType.FUN,
+    "let": TokenType.LET,
+    "const": TokenType.CONST,
+    "int": TokenType.INT,
+    "float": TokenType.FLOAT,
+    "str": TokenType.STR,
+}
+
+
 # Builtin types
 type_token = TokenType.INT | TokenType.FLOAT | TokenType.STR
 
@@ -269,7 +286,12 @@ class Lexer:
         ):
             ident += self.current_char
             self.advance()
-        return Token(TokenType.IDENT, loc, ident, ident)
+
+        # Check if ident is keyword
+        if ident in KEYWORD_DICT:
+            return Token(KEYWORD_DICT[ident], loc, ident, ident)
+        else:
+            return Token(TokenType.IDENT, loc, ident, ident)
 
     def next_token(self) -> Token:
         """Return the next token from self, advancing the lexer.
@@ -402,8 +424,6 @@ class Lexer:
         tok = self.next_token()
 
         if tok.typ != typ:
-            raise TableError(
-                f"Expected token {typ}, found token {tok.typ}", tok.loc
-            )
+            raise TableError(f"Expected token {typ}, found token {tok.typ}", tok.loc)
         else:
             return tok
