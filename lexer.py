@@ -339,7 +339,7 @@ class Lexer:
             case "*":
                 self.advance()
                 return Token(TokenType.STAR, loc, "*")
-            case "*":
+            case "&":
                 self.advance()
                 return Token(TokenType.AMPERSAND, loc, "&")
             case "/":

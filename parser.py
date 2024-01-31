@@ -20,6 +20,18 @@ class BinExpr:
     rhs: Expr
 
 
+class UnaryOp(IntEnum):
+    DEREF = auto()  # *
+    REF = auto()  # &
+    NEGATE = auto()
+
+
+@dataclass
+class UnaryExpr:
+    op: UnaryOp
+    inner: Expr
+
+
 @dataclass
 class LiteralExpr:
     val: int | float | str
@@ -54,7 +66,7 @@ class AssignExpr:
 
 
 # union type for expression
-Expr = AssignExpr | BinExpr | LiteralExpr | FunCall | IdentExpr | NameExpr
+Expr = AssignExpr | BinExpr | UnaryExpr | LiteralExpr | FunCall | IdentExpr | NameExpr
 
 
 class DefStmt:
@@ -178,7 +190,7 @@ def parse_name_expr(lexer: Lexer) -> Expr:
 def parse_unary(lexer: Lexer) -> Expr:
     """Parse a unary expression.
 
-    TODO: Grammar
+    <unary> ::= ("&" | "*") <name_expr>
 
     Args:
         lexer: The lexer to parse from.
@@ -192,8 +204,22 @@ def parse_unary(lexer: Lexer) -> Expr:
     Raises:
         TableError: If parsing failed.
     """
-    # TODO: implement
-    return parse_name_expr(lexer)
+    # TODO: code is repetitive
+    next_tok = lexer.peek()
+    if next_tok.typ == TokenType.AMPERSAND:
+        _ = lexer.expect_type(TokenType.AMPERSAND)
+        inner = parse_name_expr(lexer)
+        return UnaryExpr(UnaryOp.REF, inner)
+    elif next_tok.typ == TokenType.STAR:
+        _ = lexer.expect_type(TokenType.STAR)
+        inner = parse_name_expr(lexer)
+        return UnaryExpr(UnaryOp.DEREF, inner)
+    elif next_tok.typ == TokenType.MINUS:
+        _ = lexer.expect_type(TokenType.MINUS)
+        inner = parse_name_expr(lexer)
+        return UnaryExpr(UnaryOp.NEGATE, inner)
+    else:
+        return parse_name_expr(lexer)
 
 
 def parse_funcall(lexer: Lexer) -> Expr:
@@ -213,9 +239,6 @@ def parse_funcall(lexer: Lexer) -> Expr:
     Raises:
         TableError: If parsing failed.
     """
-    # TODO: use funcall ::= <unary> (<args>)* to support calling a function
-    # returned by another function
-    # Example: retfun()()
     expr = parse_unary(lexer)
 
     while lexer.peek().typ == TokenType.L_PAREN:
