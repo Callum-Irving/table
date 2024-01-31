@@ -118,6 +118,9 @@ Stmt = DefStmt | ExprStmt | BlockStmt
 def parse_args(lexer: Lexer) -> list[Expr]:
     """Parse comma-separated list of expressions.
 
+    TODO: Grammar not exactly correct (trailing comma)
+    <args> ::= "(" (<expr> ",")* ")"
+
     Args:
         lexer: The lexer to parse from.
 
@@ -135,16 +138,20 @@ def parse_args(lexer: Lexer) -> list[Expr]:
 
     args = []
 
-    while True:
+    # Special case when argument list is empty
+    if lexer.peek().typ == TokenType.R_PAREN:
+        _ = lexer.expect_type(TokenType.R_PAREN)
+        return args
+
+    # Parse first argument
+    first_arg = parse_expr(lexer)
+    args.append(first_arg)
+
+    # Parse the rest of the arguments
+    while lexer.peek().typ == TokenType.COMMA:
+        _ = lexer.expect_type(TokenType.COMMA)
         arg = parse_expr(lexer)
         args.append(arg)
-
-        comma = lexer.peek()
-        if comma.typ != TokenType.COMMA:
-            break
-        else:
-            # Skip comma
-            _ = lexer.next_token()
 
     # Expect close paren
     _ = lexer.expect_type(TokenType.R_PAREN)
@@ -285,7 +292,7 @@ def parse_funcall(lexer: Lexer) -> Expr:
 def parse_term(lexer: Lexer) -> Expr:
     """Parse a term.
 
-    <term> ::= <factor> (("*" | "/") <factor>)*
+    <term> ::= <funcall> (("*" | "/") <funcall>)*
 
     Args:
         lexer: The lexer to parse from.

@@ -6,6 +6,8 @@
 
     # Assignment expression
     a.b.c = -(&f5);
+
+    func();
     
     # Block statement
     {
@@ -17,4 +19,7 @@
     let a: int = 5;
     # Const definition
     const b: str = "hello";
+
+    # user defined type
+    const some_var: module.Type = function();
 }
