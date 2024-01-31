@@ -120,7 +120,12 @@ class BlockStmt:
     stmts: list[Stmt]
 
 
-type Stmt = LetDef | ConstDef | ExprStmt | BlockStmt
+@dataclass
+class ReturnStmt:
+    value: Expr
+
+
+type Stmt = LetDef | ConstDef | ExprStmt | BlockStmt | ReturnStmt
 
 
 @dataclass
@@ -503,10 +508,27 @@ def parse_block_stmt(lexer: Lexer) -> BlockStmt:
     return BlockStmt(stmts)
 
 
+def parse_return_stmt(lexer: Lexer) -> ReturnStmt:
+    """Parse a return statement.
+
+    ``<return_stmt> ::= "return" <expr> ";"
+
+    :param lexer: The lexer to parse from.
+    :raises TableError: Raised if parsing fails.
+    :returns: A return statement.
+
+    .. warning:: Mutates lexer.
+    """
+    _ = lexer.expect_type(TokenType.RETURN)
+    value = parse_expr(lexer)
+    _ = lexer.expect_type(TokenType.SEMICOLON)
+    return ReturnStmt(value)
+
+
 def parse_stmt(lexer: Lexer) -> Stmt:
     """Parse a statement.
 
-    ``<stmt> ::= <let_def> | <const_def> | <block_stmt> | <expr_stmt>``
+    ``<stmt> ::= <let_def> | <const_def> | <block_stmt> | <expr_stmt> | <return_stmt>``
 
     :param lexer: The lexer to parse from.
     :raises TableError: Raised if parsing fails.
@@ -522,6 +544,8 @@ def parse_stmt(lexer: Lexer) -> Stmt:
         return parse_const_def(lexer)
     elif next_tok.typ == TokenType.L_BRACK:
         return parse_block_stmt(lexer)
+    elif next_tok.typ == TokenType.RETURN:
+        return parse_return_stmt(lexer)
     else:
         expr = parse_expr(lexer)
         # Expect semicolon to end statement
@@ -683,7 +707,38 @@ def parse_interface(lexer: Lexer) -> Interface:
 
 
 def parse_struct(lexer: Lexer) -> Struct:
-    assert False, "not implemented: parse struct"
+    """Parse a struct definition.
+
+    ``<struct> ::= "struct" <ident> "{" (<struct_binding> | <fun_def>)+ "}"``
+
+    :param lexer: The lexer to parse from.
+    :raises TableError: Raised if parsing fails.
+    :returns: A struct definition.
+
+    .. warning:: Mutates lexer.
+    """
+    _ = lexer.expect_type(TokenType.STRUCT)
+    name = lexer.expect_type(TokenType.IDENT)
+    assert isinstance(name.val, str), "ident value must be string"
+    _ = lexer.expect_type(TokenType.L_BRACK)
+
+    fields = []
+    methods = []
+    while (tok := lexer.peek()).typ != TokenType.R_BRACK:
+        if tok.typ == TokenType.IDENT:
+            # parse binding (struct field)
+            field = parse_binding(lexer)
+            _ = lexer.expect_type(TokenType.SEMICOLON)
+            fields.append(field)
+        elif tok.typ == TokenType.FUN:
+            # parse function (struct method)
+            fun_def = parse_fun_def(lexer)
+            methods.append(fun_def)
+        else:
+            raise TableError(f"Expected binding or function definition, found {tok.lexeme}", tok.loc)
+    _ = lexer.expect_type(TokenType.R_BRACK)
+
+    return Struct(name.val, fields, methods)
 
 
 def parse_top_level(lexer: Lexer) -> TopLevel:

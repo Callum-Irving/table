@@ -1,5 +1,14 @@
 import std.io;
 
+struct TestStruct {
+    x: int; # field
+
+    fun get_x(self: *TestStruct): int {
+        return self.x;
+    }
+}
+
+
 interface ToString {
     fun to_string(): str;	
 
