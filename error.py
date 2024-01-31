@@ -16,7 +16,7 @@ class Location:
         return Location(self.file, self.posn, self.line, self.col)
 
 
-class TableError:
+class TableError(Exception):
     msg: str
     loc: Location | None
 

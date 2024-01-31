@@ -6,11 +6,6 @@ A programming language that aims to have:
 - The ease-of-use of assembly
 
 
-## TODO
-
-- [ ] Switch to try, catch, raise instead of errors as values
-
-
 ## Syntax Example
 
 ```

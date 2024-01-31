@@ -2,8 +2,8 @@
 
 import sys
 
-from error import error_fmt
-from parser import parse_stmt_list
+from error import TableError, error_fmt
+from parser import parse_stmt
 from lexer import Lexer
 
 
@@ -19,5 +19,8 @@ if __name__ == "__main__":
 
     filename = sys.argv[1]
     lexer = Lexer(filename)
-    stmts = parse_stmt_list(lexer)
-    print(stmts)
+    try:
+        stmts = parse_stmt(lexer)
+        print(stmts)
+    except TableError as e:
+        print(repr(e))
