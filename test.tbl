@@ -1,4 +1,8 @@
-import "std.io";
+import std.io;
+
+interface ToString {
+    fun to_string(): str;
+}
 
 
 # This is a comment

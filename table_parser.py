@@ -3,7 +3,7 @@ from enum import IntEnum, auto
 from dataclasses import dataclass
 
 from error import TableError
-from lexer import Lexer, Token, TokenType
+from lexer import Lexer, TokenType
 
 
 class BinOp(IntEnum):
@@ -56,7 +56,6 @@ class NameExpr:
 
     In this example, `std` is the name and `io` is the subname.
     """
-
     name: Expr
     subname: str
 
@@ -68,7 +67,7 @@ class AssignExpr:
 
 
 # union type for expression
-Expr = AssignExpr | BinExpr | UnaryExpr | LiteralExpr | FunCall | IdentExpr | NameExpr
+type Expr = AssignExpr | BinExpr | UnaryExpr | LiteralExpr | FunCall | IdentExpr | NameExpr
 
 
 class DefType(IntEnum):
@@ -119,23 +118,41 @@ class BlockStmt:
     stmts: list[Stmt]
 
 
-Stmt = LetDef | ConstDef | ExprStmt | BlockStmt
+type Stmt = LetDef | ConstDef | ExprStmt | BlockStmt
+
+
+@dataclass
+class Struct:
+    name: str
+    fields: list[Binding]
+    methods: list[FunDef]
+
+
+@dataclass
+class Interface:
+    name: str
+    functions: list[tuple[str, FunSig]]
+
+
+@dataclass
+class FunSig:
+    params: list[Binding]
+    return_type: TableType
 
 
 @dataclass
 class FunDef:
     name: str
-    args: list[Binding]
-    return_type: TableType
+    sig: FunSig
     body: BlockStmt
 
 
 @dataclass
 class Import:
-    name: str
+    path: list[str]
 
 
-TopLevel = ConstDef | FunDef | Import
+type TopLevel = ConstDef | FunDef | Import | Interface | Struct
 
 
 def parse_args(lexer: Lexer) -> list[Expr]:
@@ -543,7 +560,7 @@ def parse_params(lexer: Lexer) -> list[Binding]:
 def parse_fun_def(lexer: Lexer) -> FunDef:
     """Parse a function definition.
 
-    ``<fun_def> ::= "fun" <ident> <params> (":" <type>)? <block_stmt>``
+    ``<fun_def> ::= <named_fun_sig> <block_stmt>``
 
     :param lexer: The lexer to parse from.
     :raises TableError: Raised if parsing fails.
@@ -551,23 +568,18 @@ def parse_fun_def(lexer: Lexer) -> FunDef:
     
     .. warning:: Mutates lexer.
     """
-    _ = lexer.expect_type(TokenType.FUN)
-    name = lexer.expect_type(TokenType.IDENT)
-    assert isinstance(name.val, str), "ident value must be string"
-    params = parse_params(lexer)
-    return_type = TableType(TableTypeEnum.NONE)
-    if lexer.peek().typ == TokenType.COLON:
-        _ = lexer.expect_type(TokenType.COLON)
-        return_type = parse_type_name(lexer)
+    name, sig = parse_named_fun_sig(lexer)
+
     body = parse_block_stmt(lexer)
     assert isinstance(body, BlockStmt), "parse_block_stmt returns BlockStmt"
-    return FunDef(name.val, params, return_type, body)
+
+    return FunDef(name, sig, body)
 
 
 def parse_import(lexer: Lexer) -> Import:
     """Parse an import.
 
-    ``<import> ::= "import" <str> ";"``
+    ``<import> ::= "import" <ident> ("." <ident>)* ";"``
 
     :param lexer: The lexer to parse from.
     :raises TableError: Raised if parsing fails.
@@ -576,16 +588,99 @@ def parse_import(lexer: Lexer) -> Import:
     .. warning:: Mutates lexer.
     """
     _ = lexer.expect_type(TokenType.IMPORT)
-    name = lexer.expect_type(TokenType.STR_LIT)
+    first_seg = lexer.expect_type(TokenType.IDENT)
+    assert isinstance(first_seg.val, str), "ident value must be string"
+    path = [first_seg.val]
+
+    while lexer.peek().typ == TokenType.DOT:
+        _ = lexer.expect_type(TokenType.DOT)
+        next_seg = lexer.expect_type(TokenType.IDENT)
+        assert isinstance(next_seg.val, str), "ident_value must be string"
+        path.append(next_seg.val)
+
     _ = lexer.expect_type(TokenType.SEMICOLON)
-    assert isinstance(name.val, str), "string literal value must be string"
-    return Import(name.val)
+    return Import(path)
+
+
+def parse_named_fun_sig(lexer: Lexer) -> tuple[str, FunSig]:
+    """Parse the start of a function definition or declaration.
+
+    <named_fun_sig> ::= "fun" <ident> <params> (":" <type>)?
+
+    :param lexer: The lexer to parse from.
+    :raises TableError: Raised if parsing fails.
+    :returns: A tuple containg function name and signature.
+
+    .. warning:: Mutates lexer.
+    """
+    _ = lexer.expect_type(TokenType.FUN)
+    name = lexer.expect_type(TokenType.IDENT)
+    assert isinstance(name.val, str), "ident value must be string"
+
+    # TODO: Parse generics here
+
+    params = parse_params(lexer)
+    return_type = TableType(TableTypeEnum.NONE)
+    if lexer.peek().typ == TokenType.COLON:
+        _ = lexer.expect_type(TokenType.COLON)
+        return_type = parse_type_name(lexer)
+    sig = FunSig(params, return_type)
+
+    return (name.val, sig)
+
+
+def parse_fun_decl(lexer: Lexer) -> tuple[str, FunSig]:
+    """Parse a function declaration.
+
+    ``<fun_decl> ::= <named_fun_sig> ";"
+
+    :param lexer: The lexer to parse from.
+    :raises TableError: Raised if parsing fails.
+    :returns: A tuple containg function name and signature.
+
+    .. warning:: Mutates lexer.
+    """
+    sig = parse_named_fun_sig(lexer)
+    _ = lexer.expect_type(TokenType.SEMICOLON)
+    return sig
+
+
+def parse_interface(lexer: Lexer) -> Interface:
+    """Parse an interface definition.
+
+    ``<interface> ::= "interface" <ident> "{" <fun_decl>+ "}"``
+
+    :param lexer: The lexer to parse from.
+    :raises TableError: Raised if parsing fails.
+    :returns: An interface definition.
+
+    .. warning:: Mutates lexer.
+    """
+    _ = lexer.expect_type(TokenType.INTERFACE)
+    name = lexer.expect_type(TokenType.IDENT)
+    assert isinstance(name.val, str), "ident value must be string"
+    _ = lexer.expect_type(TokenType.L_BRACK)
+
+    functions = []
+    while lexer.peek().typ != TokenType.R_BRACK:
+        fun_decl = parse_fun_decl(lexer)
+        functions.append(fun_decl)
+
+    r_brack = lexer.expect_type(TokenType.R_BRACK)
+    if len(functions) == 0:
+        raise TableError("Expected at least one function declaration", r_brack.loc)
+
+    return Interface(name.val, functions)
+
+
+def parse_struct(lexer: Lexer) -> Struct:
+    assert False, "not implemented: parse struct"
 
 
 def parse_top_level(lexer: Lexer) -> TopLevel:
     """Parse a top-level definition or import.
 
-    ``<toplevel> ::= <const_def> | <fundef> | <import>``
+    ``<top_level> ::= <const_def> | <fundef> | <import>``
 
     :param lexer: The lexer to parse from.
     :raises TableError: Raised if parsing fails.
@@ -600,6 +695,10 @@ def parse_top_level(lexer: Lexer) -> TopLevel:
         return parse_fun_def(lexer)
     elif tok.typ == TokenType.IMPORT:
         return parse_import(lexer)
+    elif tok.typ == TokenType.INTERFACE:
+        return parse_interface(lexer)
+    elif tok.typ == TokenType.STRUCT:
+        return parse_struct(lexer)
     else:
         raise TableError(
             f"Expected const or fun to begin top-level definition, found: {tok.lexeme}",

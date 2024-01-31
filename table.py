@@ -4,7 +4,7 @@ import sys
 from typing import Any
 
 from error import TableError, error_fmt
-from parser import DefType, TableTypeEnum, UnaryOp, BinOp, TableType, parse_source_file
+from table_parser import DefType, TableTypeEnum, UnaryOp, BinOp, TableType, parse_source_file
 from lexer import Lexer
 
 
@@ -26,6 +26,8 @@ def print_ast(ast: Any, indent=0):
         print(f"{' ' * indent}{type(ast).__name__}: {ast._name_}")
     elif isinstance(ast, DefType):
         print(f"{' ' * indent}{type(ast).__name__}: {ast._name_}")
+    elif isinstance(ast, str | tuple | list):
+        print(f"{' ' * indent}{type(ast).__name__}: {ast}")
     else:
         # Print class name
         print(f"{' ' * indent}{type(ast).__name__}:")

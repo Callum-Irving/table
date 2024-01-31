@@ -6,6 +6,19 @@ A programming language that aims to have:
 - The ease-of-use of assembly
 
 
+## TODO
+
+- [ ] Parse generics
+- [ ] Parse traits
+- [ ] Parse structs
+- [ ] Parse pointer types
+- [ ] Add arrays
+    - Should array types be `int[]` or `[int]`?
+- [ ] Add tuples?
+- [ ] Submodules?
+    - Like Rust's mod
+
+
 ## Syntax Example
 
 ```
