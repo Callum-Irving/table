@@ -4,8 +4,8 @@ import sys
 from typing import Any
 
 from error import TableError, error_fmt
-from parser import DefType, Expr, Stmt, TableTypeEnum, UnaryOp, BinOp, TableType, parse_source_file, parse_stmt
-from lexer import Lexer, TokenType
+from parser import DefType, TableTypeEnum, UnaryOp, BinOp, TableType, parse_source_file
+from lexer import Lexer
 
 
 def usage():

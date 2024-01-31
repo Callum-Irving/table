@@ -51,7 +51,8 @@ class IdentExpr:
 
 @dataclass
 class NameExpr:
-    """Expressions like std.io
+    """
+    Expressions like std.io
 
     In this example, `std` is the name and `io` is the subname.
     """
@@ -138,21 +139,15 @@ TopLevel = ConstDef | FunDef | Import
 
 
 def parse_args(lexer: Lexer) -> list[Expr]:
-    """Parse comma-separated list of expressions, surrounded by parentheses.
+    """Parse comma-separated list of expressions, surrounded by parantheses.
 
-    <args> ::= "(" (<expr> ("," <expr>)*)? ")"
+    ``<args> ::= "(" (<expr> ("," <expr>)*)? ")"``
 
-    Args:
-        lexer: The lexer to parse from.
-
-    Mutates:
-        lexer: Advances the lexer position.
-
-    Returns:
-        A list of expressions.
-
-    Raises:
-        TableError: If parsing failed.
+    :param lexer: The lexer to parse from.
+    :raises TableError: Raised if parsing fails.
+    :returns: A list of parsed expressions.
+    
+    .. warning:: Mutates lexer.
     """
     # Expect open paren
     _ = lexer.expect_type(TokenType.L_PAREN)
@@ -183,19 +178,13 @@ def parse_args(lexer: Lexer) -> list[Expr]:
 def parse_factor(lexer: Lexer) -> Expr:
     """Parse a factor.
 
-    <factor> ::= "(" <expr> ")" | <ident> | <num> | <str>
+    ``<factor> ::= "(" <expr> ")" | <ident> | <num> | <str>``
 
-    Args:
-        lexer: The lexer to parse from.
-
-    Mutates:
-        lexer: Advances the lexer position.
-
-    Returns:
-        An expression.
-
-    Raises:
-        TableError: If parsing failed.
+    :param lexer: The lexer to parse from.
+    :raises TableError: Raised if parsing fails.
+    :returns: An expression.
+    
+    .. warning:: Mutates lexer.
     """
     tok = lexer.next_token()
 
@@ -225,19 +214,13 @@ def parse_factor(lexer: Lexer) -> Expr:
 def parse_name_expr(lexer: Lexer) -> Expr:
     """Parse a name expression.
 
-    <name_expr> ::= <factor> ("." <ident>)*
+    ``<name_expr> ::= <factor> ("." <ident>)*``
 
-    Args:
-        lexer: The lexer to parse from.
-
-    Mutates:
-        lexer: Advances the lexer position.
-
-    Returns:
-        An expression.
-
-    Raises:
-        TableError: If parsing failed.
+    :param lexer: The lexer to parse from.
+    :raises TableError: Raised if parsing fails.
+    :returns: An expression.
+    
+    .. warning:: Mutates lexer.
     """
     expr = parse_factor(lexer)
     while lexer.peek().typ == TokenType.DOT:
@@ -252,19 +235,13 @@ def parse_name_expr(lexer: Lexer) -> Expr:
 def parse_unary(lexer: Lexer) -> Expr:
     """Parse a unary expression.
 
-    <unary> ::= ("&" | "*") <name_expr>
+    ``<unary> ::= ("&" | "*") <name_expr>``
 
-    Args:
-        lexer: The lexer to parse from.
-
-    Mutates:
-        lexer: Advances the lexer position.
-
-    Returns:
-        An expression.
-
-    Raises:
-        TableError: If parsing failed.
+    :param lexer: The lexer to parse from.
+    :raises TableError: Raised if parsing fails.
+    :returns: An expression.
+    
+    .. warning:: Mutates lexer.
     """
     # TODO: code is repetitive
     next_tok = lexer.peek()
@@ -285,21 +262,15 @@ def parse_unary(lexer: Lexer) -> Expr:
 
 
 def parse_funcall(lexer: Lexer) -> Expr:
-    """Parse function call.
+    """Parse a function call.
 
-    <funcall> ::= <unary> (<args>)*
+    ``<funcall> ::= <unary> (<args>)*``
 
-    Args:
-        lexer: The lexer to parse from.
-
-    Mutates:
-        lexer: Advances the lexer position.
-
-    Returns:
-        An expression.
-
-    Raises:
-        TableError: If parsing failed.
+    :param lexer: The lexer to parse from.
+    :raises TableError: Raised if parsing fails.
+    :returns: An expression.
+    
+    .. warning:: Mutates lexer.
     """
     expr = parse_unary(lexer)
 
@@ -313,19 +284,13 @@ def parse_funcall(lexer: Lexer) -> Expr:
 def parse_term(lexer: Lexer) -> Expr:
     """Parse a term.
 
-    <term> ::= <funcall> (("*" | "/") <funcall>)*
+    ``<term> ::= <funcall> (("*" | "/") <funcall>)*``
 
-    Args:
-        lexer: The lexer to parse from.
-
-    Mutates:
-        lexer: Advances the lexer position.
-
-    Returns:
-        An expression.
-
-    Raises:
-        TableError: If parsing failed.
+    :param lexer: The lexer to parse from.
+    :raises TableError: Raised if parsing fails.
+    :returns: An expression.
+    
+    .. warning:: Mutates lexer.
     """
     factor = parse_funcall(lexer)
 
@@ -347,19 +312,13 @@ def parse_term(lexer: Lexer) -> Expr:
 def parse_addexpr(lexer: Lexer) -> Expr:
     """Parse an addition expression.
 
-    <addexpr> ::= <term> (("+" | "-") <term>)*
+    ``<addexpr> ::= <term> (("+" | "-") <term>)*``
 
-    Args:
-        lexer: The lexer to parse from.
-
-    Mutates:
-        lexer: Advances the lexer position.
-
-    Returns:
-        An expression.
-
-    Raises:
-        TableError: If parsing failed.
+    :param lexer: The lexer to parse from.
+    :raises TableError: Raised if parsing fails.
+    :returns: An expression.
+    
+    .. warning:: Mutates lexer.
     """
     term = parse_term(lexer)
 
@@ -384,20 +343,14 @@ def parse_addexpr(lexer: Lexer) -> Expr:
 def parse_expr(lexer: Lexer) -> Expr:
     """Parse an expression.
 
-    <expr> ::= <assign> | <addexpr>
-    <assign> ::= <addexpr> "=" <addexpr>
+    ``<expr> ::= <assign> | <addexpr>
+    <assign> ::= <addexpr> "=" <addexpr>``
 
-    Args:
-        lexer: The lexer to parse from.
-
-    Mutates:
-        lexer: Advances the lexer position.
-
-    Returns:
-        An expression.
-
-    Raises:
-        TableError: If parsing failed.
+    :param lexer: The lexer to parse from.
+    :raises TableError: Raised if parsing fails.
+    :returns: An expression.
+    
+    .. warning:: Mutates lexer.
     """
     first_expr = parse_addexpr(lexer)
 
@@ -414,19 +367,13 @@ def parse_expr(lexer: Lexer) -> Expr:
 def parse_type_name(lexer: Lexer) -> TableType:
     """Parse a type name.
 
-    <type> ::= "int" | "float" | "str" | <ident> ("." <ident>)*
+    ``<type> ::= "int" | "float" | "str" | <ident> ("." <ident>)*``
 
-    Args:
-        lexer: The lexer to parse from.
-
-    Mutates:
-        lexer: Advances the lexer position.
-
-    Returns:
-        A TableType.
-
-    Raises:
-        TableError: If parsing failed.
+    :param lexer: The lexer to parse from.
+    :raises TableError: Raised if parsing fails.
+    :returns: A TableType representing the parsed type name.
+    
+    .. warning:: Mutates lexer.
     """
     tok = lexer.next_token()
     if tok.typ == TokenType.INT:
@@ -451,20 +398,14 @@ def parse_type_name(lexer: Lexer) -> TableType:
 def parse_binding(lexer: Lexer) -> Binding:
     """Parse a binding.
 
-    <binding> ::= <ident> ":" <type>
-    <type> ::= "int" | "float" | "str"
+    ``<binding> ::= <ident> ":" <type>
+    <type> ::= "int" | "float" | "str"``
 
-    Args:
-        lexer: The lexer to parse from.
-
-    Mutates:
-        lexer: Advances the lexer position.
-
-    Returns:
-        A Binding.
-
-    Raises:
-        TableError: If parsing failed.
+    :param lexer: The lexer to parse from.
+    :raises TableError: Raised if parsing fails.
+    :returns: A binding.
+    
+    .. warning:: Mutates lexer.
     """
     name = lexer.expect_type(TokenType.IDENT)
     _ = lexer.expect_type(TokenType.COLON)
@@ -476,19 +417,13 @@ def parse_binding(lexer: Lexer) -> Binding:
 def parse_let_def(lexer: Lexer) -> LetDef:
     """Parse a let definition.
 
-    <let_def> ::= "let" <binding> "=" <expr> ";"
+    ``<let_def> ::= "let" <binding> "=" <expr> ";"``
 
-    Args:
-        lexer: The lexer to parse from.
-
-    Mutates:
-        lexer: Advances the lexer position.
-
-    Returns:
-        A let definition.
-
-    Raises:
-        TableError: If parsing failed.
+    :param lexer: The lexer to parse from.
+    :raises TableError: Raised if parsing fails.
+    :returns: A let definition.
+    
+    .. warning:: Mutates lexer.
     """
     _ = lexer.expect_type(TokenType.LET)
     binding = parse_binding(lexer)
@@ -501,19 +436,13 @@ def parse_let_def(lexer: Lexer) -> LetDef:
 def parse_const_def(lexer: Lexer) -> ConstDef:
     """Parse a const definition.
 
-    <const_def> ::= "const" <binding> "=" <expr> ";"
+    ``<const_def> ::= "const" <binding> "=" <expr> ";"``
 
-    Args:
-        lexer: The lexer to parse from.
-
-    Mutates:
-        lexer: Advances the lexer position.
-
-    Returns:
-        A let definition.
-
-    Raises:
-        TableError: If parsing failed.
+    :param lexer: The lexer to parse from.
+    :raises TableError: Raised if parsing fails.
+    :returns: A const definition.
+    
+    .. warning:: Mutates lexer.
     """
     _ = lexer.expect_type(TokenType.CONST)
     binding = parse_binding(lexer)
@@ -526,19 +455,13 @@ def parse_const_def(lexer: Lexer) -> ConstDef:
 def parse_block_stmt(lexer: Lexer) -> BlockStmt:
     """Parse a block statement.
 
-    <block_stmt> ::= "{" <stmt>* "}"
+    ``<block_stmt> ::= "{" <stmt>* "}"``
 
-    Args:
-        lexer: The lexer to parse from.
-
-    Mutates:
-        lexer: Advances the lexer position.
-
-    Returns:
-        A block statement.
-
-    Raises:
-        TableError: if parsing failed.
+    :param lexer: The lexer to parse from.
+    :raises TableError: Raised if parsing fails.
+    :returns: A block statement.
+    
+    .. warning:: Mutates lexer.
     """
     # Expect open bracket
     _ = lexer.expect_type(TokenType.L_BRACK)
@@ -557,19 +480,13 @@ def parse_block_stmt(lexer: Lexer) -> BlockStmt:
 def parse_stmt(lexer: Lexer) -> Stmt:
     """Parse a statement.
 
-    <stmt> ::= <let_def> | <const_def> | <block_stmt> | <expr_stmt>
+    ``<stmt> ::= <let_def> | <const_def> | <block_stmt> | <expr_stmt>``
 
-    Args:
-        lexer: The lexer to parse from.
-
-    Mutates:
-        lexer: Advances the lexer position.
-
-    Returns:
-        A statement.
-
-    Raises:
-        TableError: if parsing failed.
+    :param lexer: The lexer to parse from.
+    :raises TableError: Raised if parsing fails.
+    :returns: A statement.
+    
+    .. warning:: Mutates lexer.
     """
     next_tok = lexer.peek()
 
@@ -589,19 +506,13 @@ def parse_stmt(lexer: Lexer) -> Stmt:
 def parse_params(lexer: Lexer) -> list[Binding]:
     """Parse comma-separated list of bindings, surrounded by parentheses.
 
-    <params> ::= "(" (<binding> ("," <binding>)*)? ")"
+    ``<params> ::= "(" (<binding> ("," <binding>)*)? ")"``
 
-    Args:
-        lexer: The lexer to parse from.
-
-    Mutates:
-        lexer: Advances the lexer position.
-
-    Returns:
-        A list of bindings.
-
-    Raises:
-        TableError: If parsing failed.
+    :param lexer: The lexer to parse from.
+    :raises TableError: Raised if parsing fails.
+    :returns: A list of bindings.
+    
+    .. warning:: Mutates lexer.
     """
     # Expect open paren
     _ = lexer.expect_type(TokenType.L_PAREN)
@@ -632,19 +543,13 @@ def parse_params(lexer: Lexer) -> list[Binding]:
 def parse_fun_def(lexer: Lexer) -> FunDef:
     """Parse a function definition.
 
-    <fundef> ::= "fun" <ident> <params> (":" <type>)? <block_stmt>
+    ``<fun_def> ::= "fun" <ident> <params> (":" <type>)? <block_stmt>``
 
-    Args:
-        lexer: The lexer to parse from.
-
-    Mutates:
-        lexer: Advances the lexer position.
-
-    Returns:
-        A function definition.
-
-    Raises:
-        TableError: If parsing failed.
+    :param lexer: The lexer to parse from.
+    :raises TableError: Raised if parsing fails.
+    :returns: A function definition.
+    
+    .. warning:: Mutates lexer.
     """
     _ = lexer.expect_type(TokenType.FUN)
     name = lexer.expect_type(TokenType.IDENT)
@@ -662,19 +567,13 @@ def parse_fun_def(lexer: Lexer) -> FunDef:
 def parse_import(lexer: Lexer) -> Import:
     """Parse an import.
 
-    <import> ::= "import" <str> ";"
+    ``<import> ::= "import" <str> ";"``
 
-    Args:
-        lexer: The lexer to parse from.
-
-    Mutates:
-        lexer: Advances the lexer position.
-
-    Returns:
-        An import.
-
-    Raises:
-        TableError: If parsing failed.
+    :param lexer: The lexer to parse from.
+    :raises TableError: Raised if parsing fails.
+    :returns: An import.
+    
+    .. warning:: Mutates lexer.
     """
     _ = lexer.expect_type(TokenType.IMPORT)
     name = lexer.expect_type(TokenType.STR_LIT)
@@ -684,21 +583,15 @@ def parse_import(lexer: Lexer) -> Import:
 
 
 def parse_top_level(lexer: Lexer) -> TopLevel:
-    """Parse a top-level definition.
+    """Parse a top-level definition or import.
 
-    <toplevel> ::= <const_def> | <fundef> | <import>
+    ``<toplevel> ::= <const_def> | <fundef> | <import>``
 
-    Args:
-        lexer: The lexer to parse from.
-
-    Mutates:
-        lexer: Advances the lexer position.
-
-    Returns:
-        A top-level definition.
-
-    Raises:
-        TableError: If parsing failed.
+    :param lexer: The lexer to parse from.
+    :raises TableError: Raised if parsing fails.
+    :returns: A top-level definition or import.
+    
+    .. warning:: Mutates lexer.
     """
     tok = lexer.peek()
     if tok.typ == TokenType.CONST:
@@ -715,7 +608,14 @@ def parse_top_level(lexer: Lexer) -> TopLevel:
 
 
 def parse_source_file(lexer: Lexer) -> list[TopLevel]:
-    """Parse a list of top-level definitions."""
+    """Parse a list of top-level definitions or imports.
+
+    :param lexer: The lexer to parse from.
+    :raises TableError: Raised if parsing fails.
+    :returns: A list of top-level definitions or imports.
+
+    .. warning:: Mutates lexer.
+    """
     defs = []
     while lexer.peek().typ != TokenType.EOF:
         definition = parse_top_level(lexer)

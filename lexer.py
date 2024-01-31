@@ -107,11 +107,9 @@ class Lexer:
     def __init__(self, filename: str):
         """Create a new lexer by reading from a file.
 
-        Args:
-            filename: The name of the file to read from.
+        :param filename: The name of the file to read from.
 
-        Mutates:
-            self: Populates fields.
+        .. warning:: Will crash the program if the file cannot be read.
         """
         try:
             with open(filename, "r") as file:
@@ -130,8 +128,7 @@ class Lexer:
     def advance(self):
         """Advance the lexer by one character.
 
-        Mutates:
-            self: Advances the lexer position.
+        .. warning:: Mutates self.
         """
         if not self.current_char:
             return
@@ -151,8 +148,7 @@ class Lexer:
     def skip_whitespace(self):
         """Skip one block of whitespace.
 
-        Mutates:
-            self: Advances the lexer position.
+        .. warning:: Mutates self.
         """
         while self.current_char and self.current_char.isspace():
             self.advance()
@@ -160,8 +156,7 @@ class Lexer:
     def skip_comment(self):
         """Skip one comment.
 
-        Mutates:
-            self: Advances the lexer position.
+        .. warning:: Mutates self.
         """
         while self.current_char and self.current_char != "\n":
             self.advance()
@@ -170,8 +165,7 @@ class Lexer:
         """Skip many blocks of whitespace and comments until next char isn't
         whitespace or comment.
 
-        Mutates:
-            self: Advances the lexer position.
+        .. warning:: Mutates self.
         """
         while self.current_char:
             if self.current_char.isspace():
@@ -184,17 +178,11 @@ class Lexer:
     def consume_string(self, loc) -> Token:
         """Consume a string literal from self.
 
-        Args:
-            loc: The location of the start of the string.
+        :param loc: The starting location of the string.
+        :raises TableError: Raised if there is an unexpected EOF.
+        :returns: A string literal token.
 
-        Mutates:
-            self: Advances the lexer position
-
-        Returns:
-            The string literal Token.
-
-        Raises:
-            TableError: If there is an unexpected EOF.
+        .. warning:: Mutates self.
         """
         string = ""
         if self.current_char != '"':
@@ -246,19 +234,16 @@ class Lexer:
     def consume_number(self, loc) -> Token:
         """Consume an integer or float literal from self.
 
-        Args:
-            loc: The starting location of the literal.
+        :param loc: The starting location of the token.
+        :returns: An integer literal token.
 
-        Mutates:
-            self: Advances the lexer position.
-
-        Returns:
-            The integer or float literal Token.
+        .. warning:: Mutates self.
         """
         num_str = ""
         while self.current_char and (
             self.current_char.isdigit() or self.current_char == "."
         ):
+            # TODO: Implement floating point literals
             if self.current_char == ".":
                 assert False, "not implemented: floating point literals"
             num_str += self.current_char
@@ -269,14 +254,10 @@ class Lexer:
     def consume_ident(self, loc) -> Token:
         """Consume an identifier from self.
 
-        Args:
-            loc: The starting location of the identifier.
+        :param loc: The starting location of the token.
+        :returns: An identifier token.
 
-        Mutates:
-            self: Advances the lexer.
-
-        Returns:
-            The identifier Token.
+        .. warning:: Mutates self.
         """
         ident = ""
         while self.current_char and (
@@ -294,14 +275,10 @@ class Lexer:
     def next_token(self) -> Token:
         """Return the next token from self, advancing the lexer.
 
-        Mutates:
-            self: Advances the lexer position.
+        :raises TableError: Raised if there is an unexpected character.
+        :returns: The next token or EOF is there is none.
 
-        Returns:
-            The next token or EOF if there is none.
-
-        Raises:
-            TableError: If there is an unexpected character.
+        .. warning:: Mutates self.
         """
         if self.peek_token:
             tok = self.peek_token
@@ -386,14 +363,10 @@ class Lexer:
     def peek(self) -> Token:
         """Returns the next token in self without advancing the lexer.
 
-        Mutates:
-            self: Modifies a field used for peeking.
+        :raises TableError: Raised if next_token raises an error.
+        :returns: The next token from input.
 
-        Returns:
-            The next token from input.
-
-        Raises:
-            TableError: Raised if next_token raises an error.
+        .. warning:: Mutates self.
         """
         if self.peek_token:
             return self.peek_token
@@ -408,17 +381,11 @@ class Lexer:
         Advances the lexer by one token. If the token matches typ, it returns
         the token. Otherwise, it raises a TableError.
 
-        Args:
-            typ: The TokenType that the next token must match.
+        :param typ: The TokenType that the next token must match.
+        :raises TableError: Raised if the next token does not match typ.
+        :returns: The next token from input.
 
-        Mutates:
-            self: Advances the lexer position.
-
-        Returns:
-            The next token from self.
-
-        Raises:
-            TableError: If the next token does not match typ.
+        .. warning:: Mutates self.
         """
         tok = self.next_token()
 
