@@ -104,7 +104,7 @@ class Lexer:
     # Current location
     loc: Location
     # Used for peek
-    read_tokens: list
+    peek_token: Token | None
 
     def __init__(self, filename: str):
         """Create a new lexer by reading from a file.
@@ -120,7 +120,7 @@ class Lexer:
                 self.filename = filename
                 self.contents = file.read()
                 self.loc = Location(filename, 0, 0, 0)
-                self.read_tokens = []
+                self.peek_token = None
                 if len(self.contents) > 0:
                     self.current_char = self.contents[0]
                 else:
@@ -305,8 +305,10 @@ class Lexer:
         Raises:
             TableError: If there is an unexpected character.
         """
-        if len(self.read_tokens) > 0:
-            return self.read_tokens.pop(0)
+        if self.peek_token:
+            tok = self.peek_token
+            self.peek_token = None
+            return tok
 
         self.skip_whitespace_and_comments()
 
@@ -396,11 +398,11 @@ class Lexer:
             TableError: Raised if next_token raises an error.
         """
         # TODO: No need for a list
-        if len(self.read_tokens) > 0:
-            return self.read_tokens[0]
+        if self.peek_token:
+            return self.peek_token
         else:
             tok = self.next_token()
-            self.read_tokens.append(tok)
+            self.peek_token = tok
             return tok
 
     def expect_type(self, typ: TokenType) -> Token:
