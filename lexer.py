@@ -45,6 +45,7 @@ class TokenType(IntEnum):
     WHILE = auto()  # while
     RETURN = auto()  # return
     STRUCT = auto()  # struct
+    IMPORT = auto()  # import
     FUN = auto()  # fun
     LET = auto()  # let
     CONST = auto()  # const
@@ -64,6 +65,7 @@ KEYWORD_DICT = {
     "while": TokenType.WHILE,
     "return": TokenType.RETURN,
     "struct": TokenType.STRUCT,
+    "import": TokenType.IMPORT,
     "fun": TokenType.FUN,
     "let": TokenType.LET,
     "const": TokenType.CONST,

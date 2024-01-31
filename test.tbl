@@ -1,5 +1,8 @@
+import "std.io";
+
+
 # This is a comment
-{
+fun main() {
     # Some expression statements
     1 + 2;
     a(123, 456, hello + 5);

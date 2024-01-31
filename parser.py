@@ -3,7 +3,7 @@ from enum import IntEnum, auto
 from dataclasses import dataclass
 
 from error import TableError
-from lexer import Lexer, TokenType
+from lexer import Lexer, Token, TokenType
 
 
 class BinOp(IntEnum):
@@ -86,6 +86,7 @@ class TableTypeEnum(IntEnum):
     INT = auto()
     FLOAT = auto()
     STR = auto()
+    NONE = auto()
     USER_DEFINED = auto()
 
 
@@ -96,8 +97,13 @@ class Binding:
 
 
 @dataclass
-class DefStmt:
-    let_or_const: DefType
+class LetDef:
+    binding: Binding
+    value: Expr
+
+
+@dataclass
+class ConstDef:
     binding: Binding
     value: Expr
 
@@ -112,11 +118,27 @@ class BlockStmt:
     stmts: list[Stmt]
 
 
-Stmt = DefStmt | ExprStmt | BlockStmt
+Stmt = LetDef | ConstDef | ExprStmt | BlockStmt
+
+
+@dataclass
+class FunDef:
+    name: str
+    args: list[Binding]
+    return_type: TableType
+    body: BlockStmt
+
+
+@dataclass
+class Import:
+    name: str
+
+
+TopLevel = ConstDef | FunDef | Import
 
 
 def parse_args(lexer: Lexer) -> list[Expr]:
-    """Parse comma-separated list of expressions.
+    """Parse comma-separated list of expressions, surrounded by parentheses.
 
     <args> ::= "(" (<expr> ("," <expr>)*)? ")"
 
@@ -426,8 +448,8 @@ def parse_type_name(lexer: Lexer) -> TableType:
         raise TableError(f"Expected type or ident, found {tok.lexeme}", tok.loc)
 
 
-def parse_type_binding(lexer: Lexer) -> Binding:
-    """Parse a type binding.
+def parse_binding(lexer: Lexer) -> Binding:
+    """Parse a binding.
 
     <binding> ::= <ident> ":" <type>
     <type> ::= "int" | "float" | "str"
@@ -451,10 +473,10 @@ def parse_type_binding(lexer: Lexer) -> Binding:
     return Binding(name.val, binding_type)
 
 
-def parse_def(lexer: Lexer) -> Stmt:
-    """Parse a definition statement.
+def parse_let_def(lexer: Lexer) -> LetDef:
+    """Parse a let definition.
 
-    <def_stmt> ::= ("let" | "const") <binding> "=" <expr> ";"
+    <let_def> ::= "let" <binding> "=" <expr> ";"
 
     Args:
         lexer: The lexer to parse from.
@@ -463,31 +485,45 @@ def parse_def(lexer: Lexer) -> Stmt:
         lexer: Advances the lexer position.
 
     Returns:
-        A definition statement.
+        A let definition.
 
     Raises:
         TableError: If parsing failed.
     """
-    let_or_const = lexer.next_token()
-    typ = None
-    if let_or_const.typ == TokenType.LET:
-        typ = DefType.LET
-    elif let_or_const.typ == TokenType.CONST:
-        typ = DefType.CONST
-    else:
-        raise TableError(
-            f"Expected 'let' or 'const', found {let_or_const.lexeme}", let_or_const.loc
-        )
-
-    binding = parse_type_binding(lexer)
+    _ = lexer.expect_type(TokenType.LET)
+    binding = parse_binding(lexer)
     _ = lexer.expect_type(TokenType.EQUALS)
     value = parse_expr(lexer)
     _ = lexer.expect_type(TokenType.SEMICOLON)
+    return LetDef(binding, value)
 
-    return DefStmt(typ, binding, value)
+
+def parse_const_def(lexer: Lexer) -> ConstDef:
+    """Parse a const definition.
+
+    <const_def> ::= "const" <binding> "=" <expr> ";"
+
+    Args:
+        lexer: The lexer to parse from.
+
+    Mutates:
+        lexer: Advances the lexer position.
+
+    Returns:
+        A let definition.
+
+    Raises:
+        TableError: If parsing failed.
+    """
+    _ = lexer.expect_type(TokenType.CONST)
+    binding = parse_binding(lexer)
+    _ = lexer.expect_type(TokenType.EQUALS)
+    value = parse_expr(lexer)
+    _ = lexer.expect_type(TokenType.SEMICOLON)
+    return ConstDef(binding, value)
 
 
-def parse_block_stmt(lexer: Lexer) -> Stmt:
+def parse_block_stmt(lexer: Lexer) -> BlockStmt:
     """Parse a block statement.
 
     <block_stmt> ::= "{" <stmt>* "}"
@@ -521,7 +557,7 @@ def parse_block_stmt(lexer: Lexer) -> Stmt:
 def parse_stmt(lexer: Lexer) -> Stmt:
     """Parse a statement.
 
-    <stmt> ::= <def_stmt> | <block_stmt> | <expr_stmt>
+    <stmt> ::= <let_def> | <const_def> | <block_stmt> | <expr_stmt>
 
     Args:
         lexer: The lexer to parse from.
@@ -537,14 +573,151 @@ def parse_stmt(lexer: Lexer) -> Stmt:
     """
     next_tok = lexer.peek()
 
-    if next_tok.typ == TokenType.LET or next_tok.typ == TokenType.CONST:
-        def_stmt = parse_def(lexer)
-        return def_stmt
+    if next_tok.typ == TokenType.LET:
+        return parse_let_def(lexer)
+    elif next_tok.typ == TokenType.CONST:
+        return parse_const_def(lexer)
     elif next_tok.typ == TokenType.L_BRACK:
-        block_stmt = parse_block_stmt(lexer)
-        return block_stmt
+        return parse_block_stmt(lexer)
     else:
         expr = parse_expr(lexer)
         # Expect semicolon to end statement
         _ = lexer.expect_type(TokenType.SEMICOLON)
         return ExprStmt(expr)
+
+
+def parse_params(lexer: Lexer) -> list[Binding]:
+    """Parse comma-separated list of bindings, surrounded by parentheses.
+
+    <params> ::= "(" (<binding> ("," <binding>)*)? ")"
+
+    Args:
+        lexer: The lexer to parse from.
+
+    Mutates:
+        lexer: Advances the lexer position.
+
+    Returns:
+        A list of bindings.
+
+    Raises:
+        TableError: If parsing failed.
+    """
+    # Expect open paren
+    _ = lexer.expect_type(TokenType.L_PAREN)
+
+    params = []
+
+    # Special case when argument list is empty
+    if lexer.peek().typ == TokenType.R_PAREN:
+        _ = lexer.expect_type(TokenType.R_PAREN)
+        return params
+
+    # Parse first parameter
+    first_arg = parse_binding(lexer)
+    params.append(first_arg)
+
+    # Parse the rest of the arguments
+    while lexer.peek().typ == TokenType.COMMA:
+        _ = lexer.expect_type(TokenType.COMMA)
+        param = parse_binding(lexer)
+        params.append(param)
+
+    # Expect close paren
+    _ = lexer.expect_type(TokenType.R_PAREN)
+
+    return params
+
+
+def parse_fun_def(lexer: Lexer) -> FunDef:
+    """Parse a function definition.
+
+    <fundef> ::= "fun" <ident> <params> (":" <type>)? <block_stmt>
+
+    Args:
+        lexer: The lexer to parse from.
+
+    Mutates:
+        lexer: Advances the lexer position.
+
+    Returns:
+        A function definition.
+
+    Raises:
+        TableError: If parsing failed.
+    """
+    _ = lexer.expect_type(TokenType.FUN)
+    name = lexer.expect_type(TokenType.IDENT)
+    assert isinstance(name.val, str), "ident value must be string"
+    params = parse_params(lexer)
+    return_type = TableType(TableTypeEnum.NONE)
+    if lexer.peek().typ == TokenType.COLON:
+        _ = lexer.expect_type(TokenType.COLON)
+        return_type = parse_type_name(lexer)
+    body = parse_block_stmt(lexer)
+    assert isinstance(body, BlockStmt), "parse_block_stmt returns BlockStmt"
+    return FunDef(name.val, params, return_type, body)
+
+
+def parse_import(lexer: Lexer) -> Import:
+    """Parse an import.
+
+    <import> ::= "import" <str> ";"
+
+    Args:
+        lexer: The lexer to parse from.
+
+    Mutates:
+        lexer: Advances the lexer position.
+
+    Returns:
+        An import.
+
+    Raises:
+        TableError: If parsing failed.
+    """
+    _ = lexer.expect_type(TokenType.IMPORT)
+    name = lexer.expect_type(TokenType.STR_LIT)
+    _ = lexer.expect_type(TokenType.SEMICOLON)
+    assert isinstance(name.val, str), "string literal value must be string"
+    return Import(name.val)
+
+
+def parse_top_level(lexer: Lexer) -> TopLevel:
+    """Parse a top-level definition.
+
+    <toplevel> ::= <const_def> | <fundef> | <import>
+
+    Args:
+        lexer: The lexer to parse from.
+
+    Mutates:
+        lexer: Advances the lexer position.
+
+    Returns:
+        A top-level definition.
+
+    Raises:
+        TableError: If parsing failed.
+    """
+    tok = lexer.peek()
+    if tok.typ == TokenType.CONST:
+        return parse_const_def(lexer)
+    elif tok.typ == TokenType.FUN:
+        return parse_fun_def(lexer)
+    elif tok.typ == TokenType.IMPORT:
+        return parse_import(lexer)
+    else:
+        raise TableError(
+            f"Expected const or fun to begin top-level definition, found: {tok.lexeme}",
+            tok.loc,
+        )
+
+
+def parse_source_file(lexer: Lexer) -> list[TopLevel]:
+    """Parse a list of top-level definitions."""
+    defs = []
+    while lexer.peek().typ != TokenType.EOF:
+        definition = parse_top_level(lexer)
+        defs.append(definition)
+    return defs

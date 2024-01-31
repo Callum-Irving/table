@@ -4,7 +4,7 @@ import sys
 from typing import Any
 
 from error import TableError, error_fmt
-from parser import DefType, Expr, Stmt, TableTypeEnum, UnaryOp, BinOp, TableType, parse_stmt
+from parser import DefType, Expr, Stmt, TableTypeEnum, UnaryOp, BinOp, TableType, parse_source_file, parse_stmt
 from lexer import Lexer, TokenType
 
 
@@ -52,14 +52,10 @@ if __name__ == "__main__":
     filename = sys.argv[1]
     lexer = Lexer(filename)
     try:
-        stmt = parse_stmt(lexer)
-        print_ast(stmt)
-
-        # Make sure no input is remaining
-        if (tok := lexer.next_token().typ) != TokenType.EOF:
-            raise TableError(f"Unexpected trailing input: {tok}")
-
-        # print(stmts)
+        # stmt = parse_stmt(lexer)
+        program = parse_source_file(lexer)
+        for definition in program:
+            print_ast(definition)
 
     except TableError as e:
         print(e)
