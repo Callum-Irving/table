@@ -34,8 +34,8 @@ class UnaryExpr:
 
 @dataclass
 class LiteralExpr:
-    # NOTE: Add type information?
-    val: int | float | str
+    typ: TableTypeEnum
+    val: str
 
 
 @dataclass
@@ -70,8 +70,36 @@ class AssignExpr:
 Expr = AssignExpr | BinExpr | UnaryExpr | LiteralExpr | FunCall | IdentExpr | NameExpr
 
 
+class DefType(IntEnum):
+    LET = auto()
+    CONST = auto()
+
+
+@dataclass
+class TableType:
+    typ: TableTypeEnum
+    # For user-defined types only:
+    value: list[str] | None = None
+
+
+class TableTypeEnum(IntEnum):
+    INT = auto()
+    FLOAT = auto()
+    STR = auto()
+    USER_DEFINED = auto()
+
+
+@dataclass
+class Binding:
+    name: str
+    typ: TableType
+
+
+@dataclass
 class DefStmt:
-    let_or_const: bool  # False = let, True = const
+    let_or_const: DefType
+    binding: Binding
+    value: Expr
 
 
 @dataclass
@@ -141,24 +169,29 @@ def parse_factor(lexer: Lexer) -> Expr:
     Raises:
         TableError: If parsing failed.
     """
-    tok = lexer.peek()
+    tok = lexer.next_token()
 
     match tok.typ:
         case TokenType.L_PAREN:
-            _ = lexer.next_token()  # expect open paren
             expr = parse_expr(lexer)
             _ = lexer.expect_type(TokenType.R_PAREN)  # expect close paren
             return expr
         case TokenType.IDENT:
-            name = lexer.next_token()
-            assert isinstance(name.val, str), "token val should be str"
-            return IdentExpr(name.val)
+            assert isinstance(tok.val, str), "token val should be str"
+            return IdentExpr(tok.val)
         case TokenType.INT_LIT:
-            tok = lexer.next_token()
-            assert isinstance(tok.val, int), "int literal with non-int value"
-            return LiteralExpr(tok.val)
-        case other:
-            raise TableError(f"Unexpected token: {other}", tok.loc)
+            assert tok.val, "int literal value should be a string"
+            return LiteralExpr(TableTypeEnum.INT, tok.val)
+        case TokenType.FLOAT_LIT:
+            assert tok.val, "float literal value should be a string"
+            return LiteralExpr(TableTypeEnum.FLOAT, tok.val)
+        case TokenType.STR_LIT:
+            assert tok.val, "string literal value should be a string"
+            return LiteralExpr(TableTypeEnum.STR, tok.val)
+        case _:
+            raise TableError(
+                f"Unexpected token when parsing factor: {tok.lexeme}", tok.loc
+            )
 
 
 def parse_name_expr(lexer: Lexer) -> Expr:
@@ -350,10 +383,72 @@ def parse_expr(lexer: Lexer) -> Expr:
         return AssignExpr(first_expr, value)
 
 
+def parse_type_name(lexer: Lexer) -> TableType:
+    """Parse a type name.
+
+    <type> ::= "int" | "float" | "str" | <ident> ("." <ident>)*
+
+    Args:
+        lexer: The lexer to parse from.
+
+    Mutates:
+        lexer: Advances the lexer position.
+
+    Returns:
+        A TableType.
+
+    Raises:
+        TableError: If parsing failed.
+    """
+    tok = lexer.next_token()
+    if tok.typ == TokenType.INT:
+        return TableType(TableTypeEnum.INT)
+    elif tok.typ == TokenType.FLOAT:
+        return TableType(TableTypeEnum.FLOAT)
+    elif tok.typ == TokenType.STR:
+        return TableType(TableTypeEnum.STR)
+    elif tok.typ == TokenType.IDENT:
+        assert isinstance(tok.val, str), "ident value must be string"
+        path = [tok.val]
+        while lexer.peek().typ == TokenType.DOT:
+            _ = lexer.expect_type(TokenType.DOT)
+            ident = lexer.expect_type(TokenType.IDENT)
+            assert isinstance(ident.val, str), "ident value must be string"
+            path.append(ident.val)
+        return TableType(TableTypeEnum.USER_DEFINED, path)
+    else:
+        raise TableError(f"Expected type or ident, found {tok.lexeme}", tok.loc)
+
+
+def parse_type_binding(lexer: Lexer) -> Binding:
+    """Parse a type binding.
+
+    <binding> ::= <ident> ":" <type>
+    <type> ::= "int" | "float" | "str"
+
+    Args:
+        lexer: The lexer to parse from.
+
+    Mutates:
+        lexer: Advances the lexer position.
+
+    Returns:
+        A Binding.
+
+    Raises:
+        TableError: If parsing failed.
+    """
+    name = lexer.expect_type(TokenType.IDENT)
+    _ = lexer.expect_type(TokenType.COLON)
+    binding_type = parse_type_name(lexer)
+    assert isinstance(name.val, str), "ident value must be string"
+    return Binding(name.val, binding_type)
+
+
 def parse_def(lexer: Lexer) -> Stmt:
     """Parse a definition statement.
 
-    <def_stmt> ::= ("let" | "const") <ident> ":" <type> "=" <expr> ";"
+    <def_stmt> ::= ("let" | "const") <binding> "=" <expr> ";"
 
     Args:
         lexer: The lexer to parse from.
@@ -367,8 +462,23 @@ def parse_def(lexer: Lexer) -> Stmt:
     Raises:
         TableError: If parsing failed.
     """
-    # TODO: Implement
-    assert False, "not implemented: parse def stmt"
+    let_or_const = lexer.next_token()
+    typ = None
+    if let_or_const.typ == TokenType.LET:
+        typ = DefType.LET
+    elif let_or_const.typ == TokenType.CONST:
+        typ = DefType.CONST
+    else:
+        raise TableError(
+            f"Expected 'let' or 'const', found {let_or_const.lexeme}", let_or_const.loc
+        )
+
+    binding = parse_type_binding(lexer)
+    _ = lexer.expect_type(TokenType.EQUALS)
+    value = parse_expr(lexer)
+    _ = lexer.expect_type(TokenType.SEMICOLON)
+
+    return DefStmt(typ, binding, value)
 
 
 def parse_block_stmt(lexer: Lexer) -> Stmt:

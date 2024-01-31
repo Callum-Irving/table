@@ -73,15 +73,11 @@ KEYWORD_DICT = {
 }
 
 
-# Builtin types
-type_token = TokenType.INT | TokenType.FLOAT | TokenType.STR
-
-
 class Token:
     typ: TokenType
     loc: Location
     lexeme: str
-    val: int | float | str | None
+    val: str | None
 
     def __init__(self, typ: TokenType, loc: Location, lexeme: str, value=None):
         self.typ = typ
@@ -265,8 +261,8 @@ class Lexer:
                 assert False, "not implemented: floating point literals"
             num_str += self.current_char
             self.advance()
-        value = int(num_str)
-        return Token(TokenType.INT_LIT, loc, num_str, value)
+        # value = int(num_str)  # leave value as string
+        return Token(TokenType.INT_LIT, loc, num_str, num_str)
 
     def consume_ident(self, loc) -> Token:
         """Consume an identifier from self.
@@ -397,7 +393,6 @@ class Lexer:
         Raises:
             TableError: Raised if next_token raises an error.
         """
-        # TODO: No need for a list
         if self.peek_token:
             return self.peek_token
         else:
@@ -426,6 +421,6 @@ class Lexer:
         tok = self.next_token()
 
         if tok.typ != typ:
-            raise TableError(f"Expected token {typ}, found token {tok.typ}", tok.loc)
+            raise TableError(f"Expected token of type {typ}, found token of type {tok.typ}", tok.loc)
         else:
             return tok
