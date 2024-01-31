@@ -118,8 +118,7 @@ Stmt = DefStmt | ExprStmt | BlockStmt
 def parse_args(lexer: Lexer) -> list[Expr]:
     """Parse comma-separated list of expressions.
 
-    TODO: Grammar not exactly correct (trailing comma)
-    <args> ::= "(" (<expr> ",")* ")"
+    <args> ::= "(" (<expr> ("," <expr>)*)? ")"
 
     Args:
         lexer: The lexer to parse from.
