@@ -394,6 +394,9 @@ def parse_block_stmt(lexer: Lexer) -> Stmt:
         stmt = parse_stmt(lexer)
         stmts.append(stmt)
 
+    # Expect close bracket
+    _ = lexer.expect_type(TokenType.R_BRACK)
+
     return BlockStmt(stmts)
 
 
