@@ -4,7 +4,7 @@ import sys
 
 from error import TableError, error_fmt
 from parser import parse_stmt
-from lexer import Lexer
+from lexer import Lexer, TokenType
 
 
 def usage():
@@ -21,6 +21,12 @@ if __name__ == "__main__":
     lexer = Lexer(filename)
     try:
         stmts = parse_stmt(lexer)
+
+        # Make sure no input is remaining
+        if (tok := lexer.next_token().typ) != TokenType.EOF:
+            raise TableError(f"Unexpected trailing input: {tok}")
+
         print(stmts)
     except TableError as e:
-        print(repr(e))
+        print(e)
+        exit(1)

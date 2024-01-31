@@ -6,4 +6,10 @@ a(123, 456, hello + 5);
 # const b: str = "hello";  # const definition
 # Example of a name expr
 a.b.c = -(&f5);
+
+{
+    io.println(item);
+    io.println(item);
+}
+
 }

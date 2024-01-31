@@ -52,7 +52,7 @@ class TokenType(IntEnum):
     FLOAT = auto()  # float
     STR = auto()  # str
 
-    def __repr__(self):
+    def __str__(self):
         return self._name_
 
 
@@ -73,8 +73,8 @@ class Token:
         if value:
             self.val = value
 
-    def __repr__(self):
-        return f"{self.lexeme} [{self.typ!r}] : {self.loc!r}"
+    def __str__(self):
+        return f"{self.lexeme} [{self.typ}] : {self.loc}"
 
 
 class Lexer:
@@ -403,7 +403,7 @@ class Lexer:
 
         if tok.typ != typ:
             raise TableError(
-                f"Expected token {typ!r}, found token {tok.typ!r}", tok.loc
+                f"Expected token {typ}, found token {tok.typ}", tok.loc
             )
         else:
             return tok

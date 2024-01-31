@@ -157,7 +157,7 @@ def parse_factor(lexer: Lexer) -> Expr:
             assert isinstance(tok.val, int), "int literal with non-int value"
             return LiteralExpr(tok.val)
         case other:
-            raise TableError(f"Unexpected token: {other!r}", tok.loc)
+            raise TableError(f"Unexpected token: {other}", tok.loc)
 
 
 def parse_name_expr(lexer: Lexer) -> Expr:

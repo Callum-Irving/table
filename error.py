@@ -8,7 +8,7 @@ class Location:
     line: int
     col: int
 
-    def __repr__(self):
+    def __str__(self):
         return f"{self.file}:{self.line+1}.{self.col+1}"
 
     def copy(self):
@@ -24,9 +24,9 @@ class TableError(Exception):
         self.msg = msg
         self.loc = loc
 
-    def __repr__(self):
+    def __str__(self):
         if self.loc:
-            return error_fmt(f"ERROR ({self.loc!r}): {self.msg}")
+            return error_fmt(f"ERROR ({self.loc}): {self.msg}")
         else:
             return error_fmt(f"ERROR: {self.msg}")
 
