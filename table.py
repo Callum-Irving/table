@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 
 import sys
+from typing import Any
 
 from error import TableError, error_fmt
-from parser import Expr, Stmt, UnaryOp, BinOp, parse_stmt
+from parser import DefType, Expr, Stmt, TableTypeEnum, UnaryOp, BinOp, TableType, parse_stmt
 from lexer import Lexer, TokenType
 
 
@@ -11,26 +12,35 @@ def usage():
     print("USAGE: table <file>")
 
 
-def print_ast(ast: Stmt | Expr | UnaryOp | BinOp, indent=0):
+def print_ast(ast: Any, indent=0):
     # Special case for binary and unary operators
     if isinstance(ast, (UnaryOp, BinOp)):
         print(f"{' ' * indent}{type(ast).__name__}: {ast._name_}")
-        return
-
-    # Print class name
-    print(f"{' ' * indent}{type(ast).__name__}:")
-
-    # Print fields
-    indent += 4
-    for key, val in ast.__dict__.items():
-        if isinstance(val, list):
-            print(f"{' ' * indent}{key}:")
-            for item in val:
-                print_ast(item, indent + 4)
-        elif "__dict__" in dir(val):
-            print_ast(val, indent)
+    elif isinstance(ast, TableType):
+        if ast.typ == TableTypeEnum.USER_DEFINED:
+            assert isinstance(ast.value, list)
+            print(f"{' ' * indent}{type(ast).__name__}: {''.join(ast.value)}")
         else:
-            print(f"{' ' * indent}{key}: {val}")
+            print(f"{' ' * indent}{type(ast).__name__}: {ast.typ._name_}")
+    elif isinstance(ast, TableTypeEnum):
+        print(f"{' ' * indent}{type(ast).__name__}: {ast._name_}")
+    elif isinstance(ast, DefType):
+        print(f"{' ' * indent}{type(ast).__name__}: {ast._name_}")
+    else:
+        # Print class name
+        print(f"{' ' * indent}{type(ast).__name__}:")
+
+        # Print fields
+        indent += 4
+        for key, val in ast.__dict__.items():
+            if isinstance(val, list):
+                print(f"{' ' * indent}{key}:")
+                for item in val:
+                    print_ast(item, indent + 4)
+            elif "__dict__" in dir(val):
+                print_ast(val, indent)
+            else:
+                print(f"{' ' * indent}{key}: {val}")
 
 
 if __name__ == "__main__":
