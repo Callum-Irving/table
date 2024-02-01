@@ -56,6 +56,7 @@ class NameExpr:
 
     In this example, `std` is the name and `io` is the subname.
     """
+
     name: Expr
     subname: str
 
@@ -89,6 +90,7 @@ class TableTypeEnum(IntEnum):
     NONE = auto()
     ARRAY = auto()
     PTR = auto()
+    SELF = auto()  # used in struct methods and interfaces
     USER_DEFINED = auto()
 
 
@@ -170,7 +172,7 @@ def parse_args(lexer: Lexer) -> list[Expr]:
     :param lexer: The lexer to parse from.
     :raises TableError: Raised if parsing fails.
     :returns: A list of parsed expressions.
-    
+
     .. warning:: Mutates lexer.
     """
     # Expect open paren
@@ -207,7 +209,7 @@ def parse_factor(lexer: Lexer) -> Expr:
     :param lexer: The lexer to parse from.
     :raises TableError: Raised if parsing fails.
     :returns: An expression.
-    
+
     .. warning:: Mutates lexer.
     """
     tok = lexer.next_token()
@@ -243,7 +245,7 @@ def parse_name_expr(lexer: Lexer) -> Expr:
     :param lexer: The lexer to parse from.
     :raises TableError: Raised if parsing fails.
     :returns: An expression.
-    
+
     .. warning:: Mutates lexer.
     """
     expr = parse_factor(lexer)
@@ -264,7 +266,7 @@ def parse_unary(lexer: Lexer) -> Expr:
     :param lexer: The lexer to parse from.
     :raises TableError: Raised if parsing fails.
     :returns: An expression.
-    
+
     .. warning:: Mutates lexer.
     """
     # TODO: code is repetitive
@@ -293,7 +295,7 @@ def parse_funcall(lexer: Lexer) -> Expr:
     :param lexer: The lexer to parse from.
     :raises TableError: Raised if parsing fails.
     :returns: An expression.
-    
+
     .. warning:: Mutates lexer.
     """
     expr = parse_unary(lexer)
@@ -313,7 +315,7 @@ def parse_term(lexer: Lexer) -> Expr:
     :param lexer: The lexer to parse from.
     :raises TableError: Raised if parsing fails.
     :returns: An expression.
-    
+
     .. warning:: Mutates lexer.
     """
     factor = parse_funcall(lexer)
@@ -341,7 +343,7 @@ def parse_addexpr(lexer: Lexer) -> Expr:
     :param lexer: The lexer to parse from.
     :raises TableError: Raised if parsing fails.
     :returns: An expression.
-    
+
     .. warning:: Mutates lexer.
     """
     term = parse_term(lexer)
@@ -373,7 +375,7 @@ def parse_expr(lexer: Lexer) -> Expr:
     :param lexer: The lexer to parse from.
     :raises TableError: Raised if parsing fails.
     :returns: An expression.
-    
+
     .. warning:: Mutates lexer.
     """
     first_expr = parse_addexpr(lexer)
@@ -391,12 +393,12 @@ def parse_expr(lexer: Lexer) -> Expr:
 def parse_type(lexer: Lexer) -> TableType:
     """Parse a type name.
 
-    ``<type> ::= "[" <type> "]" | "*" <type> | <ident> ("." <ident>)* | "int" | "float" | "str"``
+    ``<type> ::= "[" <type> "]" | "*" <type> | <ident> ("." <ident>)* | "Self" | "int" | "float" | "str"``
 
     :param lexer: The lexer to parse from.
     :raises TableError: Raised if parsing fails.
     :returns: A TableType representing the parsed type name.
-    
+
     .. warning:: Mutates lexer.
     """
     tok = lexer.next_token()
@@ -407,6 +409,8 @@ def parse_type(lexer: Lexer) -> TableType:
     elif tok.typ == TokenType.STAR:
         inner = parse_type(lexer)
         return TableType(TableTypeEnum.PTR, inner)
+    elif tok.typ == TokenType.SELF:
+        return TableType(TableTypeEnum.SELF)
     elif tok.typ == TokenType.INT:
         return TableType(TableTypeEnum.INT)
     elif tok.typ == TokenType.FLOAT:
@@ -435,7 +439,7 @@ def parse_binding(lexer: Lexer) -> Binding:
     :param lexer: The lexer to parse from.
     :raises TableError: Raised if parsing fails.
     :returns: A binding.
-    
+
     .. warning:: Mutates lexer.
     """
     name = lexer.expect_type(TokenType.IDENT)
@@ -453,7 +457,7 @@ def parse_let_def(lexer: Lexer) -> LetDef:
     :param lexer: The lexer to parse from.
     :raises TableError: Raised if parsing fails.
     :returns: A let definition.
-    
+
     .. warning:: Mutates lexer.
     """
     _ = lexer.expect_type(TokenType.LET)
@@ -472,7 +476,7 @@ def parse_const_def(lexer: Lexer) -> ConstDef:
     :param lexer: The lexer to parse from.
     :raises TableError: Raised if parsing fails.
     :returns: A const definition.
-    
+
     .. warning:: Mutates lexer.
     """
     _ = lexer.expect_type(TokenType.CONST)
@@ -491,7 +495,7 @@ def parse_block_stmt(lexer: Lexer) -> BlockStmt:
     :param lexer: The lexer to parse from.
     :raises TableError: Raised if parsing fails.
     :returns: A block statement.
-    
+
     .. warning:: Mutates lexer.
     """
     # Expect open bracket
@@ -533,7 +537,7 @@ def parse_stmt(lexer: Lexer) -> Stmt:
     :param lexer: The lexer to parse from.
     :raises TableError: Raised if parsing fails.
     :returns: A statement.
-    
+
     .. warning:: Mutates lexer.
     """
     next_tok = lexer.peek()
@@ -556,12 +560,15 @@ def parse_stmt(lexer: Lexer) -> Stmt:
 def parse_params(lexer: Lexer) -> list[Binding]:
     """Parse comma-separated list of bindings, surrounded by parentheses.
 
-    ``<params> ::= "(" (<binding> ("," <binding>)*)? ")"``
+    ``<params> ::= "(" "self"? (<binding> ("," <binding>)*)? ")"``
+
+    Note: This grammar doesn't show that a comma can follow self, but only if
+    there is another parameter after.
 
     :param lexer: The lexer to parse from.
     :raises TableError: Raised if parsing fails.
     :returns: A list of bindings.
-    
+
     .. warning:: Mutates lexer.
     """
     # Expect open paren
@@ -569,7 +576,20 @@ def parse_params(lexer: Lexer) -> list[Binding]:
 
     params = []
 
-    # Special case when argument list is empty
+    # Optionally, take self parameter
+    tok = lexer.peek()
+    # TODO: This triple condition is not nice!
+    if tok.typ == TokenType.IDENT and isinstance(tok.val, str) and tok.val == "self":
+        _ = lexer.expect_type(TokenType.IDENT)
+        params.append(Binding(tok.val, TableType(TableTypeEnum.SELF)))
+        # Handle comma after self
+        # TODO: Nesting not nice either!
+        if lexer.peek().typ == TokenType.COMMA:
+            _ = lexer.expect_type(TokenType.COMMA)
+            if lexer.peek().typ == TokenType.R_PAREN:
+                raise TableError("Unexpected trailing comma", lexer.peek().loc)
+    
+    # Special case when argument list is empty or just contains self
     if lexer.peek().typ == TokenType.R_PAREN:
         _ = lexer.expect_type(TokenType.R_PAREN)
         return params
@@ -598,7 +618,7 @@ def parse_fun_def(lexer: Lexer) -> FunDef:
     :param lexer: The lexer to parse from.
     :raises TableError: Raised if parsing fails.
     :returns: A function definition.
-    
+
     .. warning:: Mutates lexer.
     """
     name, sig = parse_named_fun_sig(lexer)
@@ -617,7 +637,7 @@ def parse_import(lexer: Lexer) -> Import:
     :param lexer: The lexer to parse from.
     :raises TableError: Raised if parsing fails.
     :returns: An import.
-    
+
     .. warning:: Mutates lexer.
     """
     _ = lexer.expect_type(TokenType.IMPORT)
@@ -735,7 +755,9 @@ def parse_struct(lexer: Lexer) -> Struct:
             fun_def = parse_fun_def(lexer)
             methods.append(fun_def)
         else:
-            raise TableError(f"Expected binding or function definition, found {tok.lexeme}", tok.loc)
+            raise TableError(
+                f"Expected binding or function definition, found {tok.lexeme}", tok.loc
+            )
     _ = lexer.expect_type(TokenType.R_BRACK)
 
     return Struct(name.val, fields, methods)
@@ -749,7 +771,7 @@ def parse_top_level(lexer: Lexer) -> TopLevel:
     :param lexer: The lexer to parse from.
     :raises TableError: Raised if parsing fails.
     :returns: A top-level definition or import.
-    
+
     .. warning:: Mutates lexer.
     """
     tok = lexer.peek()

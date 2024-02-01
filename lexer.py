@@ -53,6 +53,7 @@ class TokenType(IntEnum):
     INT = auto()  # int
     FLOAT = auto()  # float
     STR = auto()  # str
+    SELF = auto()  # Self (the type)
 
     def __str__(self):
         return self._name_
@@ -74,6 +75,7 @@ KEYWORD_DICT = {
     "int": TokenType.INT,
     "float": TokenType.FLOAT,
     "str": TokenType.STR,
+    "Self": TokenType.SELF,
 }
 
 

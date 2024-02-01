@@ -8,8 +8,17 @@ A programming language that aims to have:
 
 ## TODO
 
+- [ ] Algebraic data types
+    - Option and result
+    - ? operator like Rust
+- Add types to interfaces
+    - Interface generics:
+    ```python
+    interface GetParam<T: ToString> {
+        get_p(self): T
+    }
+    ```
 - [ ] Parse generics
-- [ ] Parse structs
 - [ ] Parse array literals
 - [ ] Add tuples?
 - [ ] Submodules?
@@ -18,7 +27,7 @@ A programming language that aims to have:
 
 ## Syntax Example
 
-```
+```python
 import "std.str.String";
 import "std.io";
 import "std.range";

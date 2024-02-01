@@ -3,17 +3,17 @@ import std.io;
 struct TestStruct {
     x: int; # field
 
-    fun get_x(self: *TestStruct): int {
+    fun get_x(self): int {
         return self.x;
     }
 }
 
 
 interface ToString {
-    fun to_string(): str;	
+    fun to_string(self): str;	
 
     # Pointer type:
-    fun get_ptr(): *self;
+    fun get_ptr(self): *Self;
 }
 
 
