@@ -394,6 +394,8 @@ class Lexer:
         tok = self.next_token()
 
         if tok.typ != typ:
-            raise TableError(f"Expected token of type {typ}, found token of type {tok.typ}", tok.loc)
+            raise TableError(
+                f"Expected token of type {typ}, found token of type {tok.typ}", tok.loc
+            )
         else:
             return tok

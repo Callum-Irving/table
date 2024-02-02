@@ -1,170 +1,12 @@
 from __future__ import annotations
-from enum import IntEnum, auto
-from dataclasses import dataclass
 
+# TODO: Get rid of wildcard import
+import table_ast
 from error import TableError
 from lexer import Lexer, TokenType
 
 
-class BinOp(IntEnum):
-    PLUS = auto()
-    MINUS = auto()
-    TIMES = auto()
-    DIVIDE = auto()
-
-
-@dataclass
-class BinExpr:
-    op: BinOp
-    lhs: Expr
-    rhs: Expr
-
-
-class UnaryOp(IntEnum):
-    DEREF = auto()  # *
-    REF = auto()  # &
-    NEGATE = auto()
-
-
-@dataclass
-class UnaryExpr:
-    op: UnaryOp
-    inner: Expr
-
-
-@dataclass
-class LiteralExpr:
-    typ: TableTypeEnum
-    val: str
-
-
-@dataclass
-class FunCall:
-    name: Expr
-    args: list[Expr]
-
-
-@dataclass
-class IdentExpr:
-    name: str
-
-
-@dataclass
-class NameExpr:
-    """
-    Expressions like std.io
-
-    In this example, `std` is the name and `io` is the subname.
-    """
-
-    name: Expr
-    subname: str
-
-
-@dataclass
-class AssignExpr:
-    name: Expr
-    value: Expr
-
-
-# union type for expression
-type Expr = AssignExpr | BinExpr | UnaryExpr | LiteralExpr | FunCall | IdentExpr | NameExpr
-
-
-class DefType(IntEnum):
-    LET = auto()
-    CONST = auto()
-
-
-@dataclass
-class TableType:
-    typ: TableTypeEnum
-    # TableType for pointers and arrays, list[str] for user defined type
-    value: TableType | list[str] | None = None
-
-
-class TableTypeEnum(IntEnum):
-    INT = auto()
-    FLOAT = auto()
-    STR = auto()
-    NONE = auto()
-    ARRAY = auto()
-    PTR = auto()
-    SELF = auto()  # used in struct methods and interfaces
-    USER_DEFINED = auto()
-
-
-@dataclass
-class Binding:
-    name: str
-    typ: TableType
-
-
-@dataclass
-class LetDef:
-    binding: Binding
-    value: Expr
-
-
-@dataclass
-class ConstDef:
-    binding: Binding
-    value: Expr
-
-
-@dataclass
-class ExprStmt:
-    expr: Expr
-
-
-@dataclass
-class BlockStmt:
-    stmts: list[Stmt]
-
-
-@dataclass
-class ReturnStmt:
-    value: Expr
-
-
-type Stmt = LetDef | ConstDef | ExprStmt | BlockStmt | ReturnStmt
-
-
-@dataclass
-class Struct:
-    name: str
-    fields: list[Binding]
-    methods: list[FunDef]
-
-
-@dataclass
-class Interface:
-    name: str
-    functions: list[tuple[str, FunSig]]
-
-
-@dataclass
-class FunSig:
-    params: list[Binding]
-    return_type: TableType
-
-
-@dataclass
-class FunDef:
-    name: str
-    sig: FunSig
-    body: BlockStmt
-
-
-@dataclass
-class Import:
-    path: list[str]
-
-
-type TopLevel = ConstDef | FunDef | Import | Interface | Struct
-
-
-def parse_args(lexer: Lexer) -> list[Expr]:
+def parse_args(lexer: Lexer) -> list[table_ast.Expr]:
     """Parse comma-separated list of expressions, surrounded by parantheses.
 
     ``<args> ::= "(" (<expr> ("," <expr>)*)? ")"``
@@ -201,7 +43,7 @@ def parse_args(lexer: Lexer) -> list[Expr]:
     return args
 
 
-def parse_factor(lexer: Lexer) -> Expr:
+def parse_factor(lexer: Lexer) -> table_ast.Expr:
     """Parse a factor.
 
     ``<factor> ::= "(" <expr> ")" | <ident> | <num> | <str>``
@@ -221,23 +63,23 @@ def parse_factor(lexer: Lexer) -> Expr:
             return expr
         case TokenType.IDENT:
             assert isinstance(tok.val, str), "token val should be str"
-            return IdentExpr(tok.val)
+            return table_ast.IdentExpr(tok.val)
         case TokenType.INT_LIT:
             assert tok.val, "int literal value should be a string"
-            return LiteralExpr(TableTypeEnum.INT, tok.val)
+            return table_ast.LiteralExpr("int", tok.val)
         case TokenType.FLOAT_LIT:
             assert tok.val, "float literal value should be a string"
-            return LiteralExpr(TableTypeEnum.FLOAT, tok.val)
+            return table_ast.LiteralExpr("float", tok.val)
         case TokenType.STR_LIT:
             assert tok.val, "string literal value should be a string"
-            return LiteralExpr(TableTypeEnum.STR, tok.val)
+            return table_ast.LiteralExpr("str", tok.val)
         case _:
             raise TableError(
                 f"Unexpected token when parsing factor: {tok.lexeme}", tok.loc
             )
 
 
-def parse_name_expr(lexer: Lexer) -> Expr:
+def parse_name_expr(lexer: Lexer) -> table_ast.Expr:
     """Parse a name expression.
 
     ``<name_expr> ::= <factor> ("." <ident>)*``
@@ -253,12 +95,12 @@ def parse_name_expr(lexer: Lexer) -> Expr:
         _ = lexer.expect_type(TokenType.DOT)
         ident = lexer.expect_type(TokenType.IDENT)
         assert isinstance(ident.val, str), "ident val should be str"
-        expr = NameExpr(expr, ident.val)
+        expr = table_ast.NameExpr(expr, ident.val)
 
     return expr
 
 
-def parse_unary(lexer: Lexer) -> Expr:
+def parse_unary(lexer: Lexer) -> table_ast.Expr:
     """Parse a unary expression.
 
     ``<unary> ::= ("&" | "*") <name_expr>``
@@ -274,20 +116,20 @@ def parse_unary(lexer: Lexer) -> Expr:
     if next_tok.typ == TokenType.AMPERSAND:
         _ = lexer.expect_type(TokenType.AMPERSAND)
         inner = parse_name_expr(lexer)
-        return UnaryExpr(UnaryOp.REF, inner)
+        return table_ast.UnaryExpr(table_ast.UnaryOp.REF, inner)
     elif next_tok.typ == TokenType.STAR:
         _ = lexer.expect_type(TokenType.STAR)
         inner = parse_name_expr(lexer)
-        return UnaryExpr(UnaryOp.DEREF, inner)
+        return table_ast.UnaryExpr(table_ast.UnaryOp.DEREF, inner)
     elif next_tok.typ == TokenType.MINUS:
         _ = lexer.expect_type(TokenType.MINUS)
         inner = parse_name_expr(lexer)
-        return UnaryExpr(UnaryOp.NEGATE, inner)
+        return table_ast.UnaryExpr(table_ast.UnaryOp.NEGATE, inner)
     else:
         return parse_name_expr(lexer)
 
 
-def parse_funcall(lexer: Lexer) -> Expr:
+def parse_funcall(lexer: Lexer) -> table_ast.Expr:
     """Parse a function call.
 
     ``<funcall> ::= <unary> (<args>)*``
@@ -302,12 +144,12 @@ def parse_funcall(lexer: Lexer) -> Expr:
 
     while lexer.peek().typ == TokenType.L_PAREN:
         args = parse_args(lexer)
-        expr = FunCall(expr, args)
+        expr = table_ast.FunCall(expr, args)
 
     return expr
 
 
-def parse_term(lexer: Lexer) -> Expr:
+def parse_term(lexer: Lexer) -> table_ast.Expr:
     """Parse a term.
 
     ``<term> ::= <funcall> (("*" | "/") <funcall>)*``
@@ -326,16 +168,16 @@ def parse_term(lexer: Lexer) -> Expr:
 
         op = None
         if plus_or_minus.typ == TokenType.STAR:
-            op = BinOp.TIMES
+            op = table_ast.BinOp.TIMES
         else:
-            op = BinOp.DIVIDE
+            op = table_ast.BinOp.DIVIDE
 
-        factor = BinExpr(op, factor, next_factor)
+        factor = table_ast.BinExpr(op, factor, next_factor)
 
     return factor
 
 
-def parse_addexpr(lexer: Lexer) -> Expr:
+def parse_addexpr(lexer: Lexer) -> table_ast.Expr:
     """Parse an addition expression.
 
     ``<addexpr> ::= <term> (("+" | "-") <term>)*``
@@ -355,18 +197,18 @@ def parse_addexpr(lexer: Lexer) -> Expr:
 
         op = None
         if plus_or_minus.typ == TokenType.PLUS:
-            op = BinOp.PLUS
+            op = table_ast.BinOp.PLUS
         elif plus_or_minus == TokenType.MINUS:
-            op = BinOp.MINUS
+            op = table_ast.BinOp.MINUS
         else:
             assert False, "unreachable"
 
-        term = BinExpr(op, term, next_term)
+        term = table_ast.BinExpr(op, term, next_term)
 
     return term
 
 
-def parse_expr(lexer: Lexer) -> Expr:
+def parse_expr(lexer: Lexer) -> table_ast.Expr:
     """Parse an expression.
 
     ``<expr> ::= <assign> | <addexpr>
@@ -387,13 +229,13 @@ def parse_expr(lexer: Lexer) -> Expr:
         # Assignment expression
         _ = lexer.expect_type(TokenType.EQUALS)
         value = parse_addexpr(lexer)
-        return AssignExpr(first_expr, value)
+        return table_ast.AssignExpr(first_expr, value)
 
 
-def parse_type(lexer: Lexer) -> TableType:
+def parse_type(lexer: Lexer) -> table_ast.TableType:
     """Parse a type name.
 
-    ``<type> ::= "[" <type> "]" | "*" <type> | <ident> ("." <ident>)* | "Self" | "int" | "float" | "str"``
+    ``<type> ::= "[" <type> ";" <int> "]" | "*" <type> | <ident> ("." <ident>)* | "Self" | "int" | "float" | "str"``
 
     :param lexer: The lexer to parse from.
     :raises TableError: Raised if parsing fails.
@@ -404,19 +246,25 @@ def parse_type(lexer: Lexer) -> TableType:
     tok = lexer.next_token()
     if tok.typ == TokenType.L_SQUARE:
         inner = parse_type(lexer)
+        _ = lexer.expect_type(TokenType.SEMICOLON)
+        length = lexer.expect_type(TokenType.INT_LIT)
+        try:
+            length = int(length)
+        except Exception:
+            assert False, "handle exception"
         _ = lexer.expect_type(TokenType.R_SQUARE)
-        return TableType(TableTypeEnum.ARRAY, inner)
+        return table_ast.TableArrayType(inner, length)
     elif tok.typ == TokenType.STAR:
         inner = parse_type(lexer)
-        return TableType(TableTypeEnum.PTR, inner)
+        return table_ast.TablePointerType(inner)
     elif tok.typ == TokenType.SELF:
-        return TableType(TableTypeEnum.SELF)
+        return "Self"
     elif tok.typ == TokenType.INT:
-        return TableType(TableTypeEnum.INT)
+        return "int"
     elif tok.typ == TokenType.FLOAT:
-        return TableType(TableTypeEnum.FLOAT)
+        return "float"
     elif tok.typ == TokenType.STR:
-        return TableType(TableTypeEnum.STR)
+        return "str"
     elif tok.typ == TokenType.IDENT:
         assert isinstance(tok.val, str), "ident value must be string"
         path = [tok.val]
@@ -425,12 +273,12 @@ def parse_type(lexer: Lexer) -> TableType:
             ident = lexer.expect_type(TokenType.IDENT)
             assert isinstance(ident.val, str), "ident value must be string"
             path.append(ident.val)
-        return TableType(TableTypeEnum.USER_DEFINED, path)
+        return table_ast.TableUserType(path)
     else:
         raise TableError(f"Expected type or ident, found {tok.lexeme}", tok.loc)
 
 
-def parse_binding(lexer: Lexer) -> Binding:
+def parse_binding(lexer: Lexer) -> table_ast.Binding:
     """Parse a binding.
 
     ``<binding> ::= <ident> ":" <type>
@@ -446,10 +294,10 @@ def parse_binding(lexer: Lexer) -> Binding:
     _ = lexer.expect_type(TokenType.COLON)
     binding_type = parse_type(lexer)
     assert isinstance(name.val, str), "ident value must be string"
-    return Binding(name.val, binding_type)
+    return table_ast.Binding(name.val, binding_type)
 
 
-def parse_let_def(lexer: Lexer) -> LetDef:
+def parse_let_def(lexer: Lexer) -> table_ast.LetDef:
     """Parse a let definition.
 
     ``<let_def> ::= "let" <binding> "=" <expr> ";"``
@@ -465,10 +313,10 @@ def parse_let_def(lexer: Lexer) -> LetDef:
     _ = lexer.expect_type(TokenType.EQUALS)
     value = parse_expr(lexer)
     _ = lexer.expect_type(TokenType.SEMICOLON)
-    return LetDef(binding, value)
+    return table_ast.LetDef(binding, value)
 
 
-def parse_const_def(lexer: Lexer) -> ConstDef:
+def parse_const_def(lexer: Lexer) -> table_ast.ConstDef:
     """Parse a const definition.
 
     ``<const_def> ::= "const" <binding> "=" <expr> ";"``
@@ -484,10 +332,10 @@ def parse_const_def(lexer: Lexer) -> ConstDef:
     _ = lexer.expect_type(TokenType.EQUALS)
     value = parse_expr(lexer)
     _ = lexer.expect_type(TokenType.SEMICOLON)
-    return ConstDef(binding, value)
+    return table_ast.ConstDef(binding, value)
 
 
-def parse_block_stmt(lexer: Lexer) -> BlockStmt:
+def parse_block_stmt(lexer: Lexer) -> table_ast.BlockStmt:
     """Parse a block statement.
 
     ``<block_stmt> ::= "{" <stmt>* "}"``
@@ -509,10 +357,10 @@ def parse_block_stmt(lexer: Lexer) -> BlockStmt:
     # Expect close bracket
     _ = lexer.expect_type(TokenType.R_BRACK)
 
-    return BlockStmt(stmts)
+    return table_ast.BlockStmt(stmts)
 
 
-def parse_return_stmt(lexer: Lexer) -> ReturnStmt:
+def parse_return_stmt(lexer: Lexer) -> table_ast.ReturnStmt:
     """Parse a return statement.
 
     ``<return_stmt> ::= "return" <expr> ";"
@@ -526,10 +374,10 @@ def parse_return_stmt(lexer: Lexer) -> ReturnStmt:
     _ = lexer.expect_type(TokenType.RETURN)
     value = parse_expr(lexer)
     _ = lexer.expect_type(TokenType.SEMICOLON)
-    return ReturnStmt(value)
+    return table_ast.ReturnStmt(value)
 
 
-def parse_stmt(lexer: Lexer) -> Stmt:
+def parse_stmt(lexer: Lexer) -> table_ast.Stmt:
     """Parse a statement.
 
     ``<stmt> ::= <let_def> | <const_def> | <block_stmt> | <expr_stmt> | <return_stmt>``
@@ -554,10 +402,10 @@ def parse_stmt(lexer: Lexer) -> Stmt:
         expr = parse_expr(lexer)
         # Expect semicolon to end statement
         _ = lexer.expect_type(TokenType.SEMICOLON)
-        return ExprStmt(expr)
+        return table_ast.ExprStmt(expr)
 
 
-def parse_params(lexer: Lexer) -> list[Binding]:
+def parse_params(lexer: Lexer) -> list[table_ast.Binding]:
     """Parse comma-separated list of bindings, surrounded by parentheses.
 
     ``<params> ::= "(" "self"? (<binding> ("," <binding>)*)? ")"``
@@ -581,14 +429,14 @@ def parse_params(lexer: Lexer) -> list[Binding]:
     # TODO: This triple condition is not nice!
     if tok.typ == TokenType.IDENT and isinstance(tok.val, str) and tok.val == "self":
         _ = lexer.expect_type(TokenType.IDENT)
-        params.append(Binding(tok.val, TableType(TableTypeEnum.SELF)))
+        params.append(table_ast.Binding(tok.val, "Self"))
         # Handle comma after self
         # TODO: Nesting not nice either!
         if lexer.peek().typ == TokenType.COMMA:
             _ = lexer.expect_type(TokenType.COMMA)
             if lexer.peek().typ == TokenType.R_PAREN:
                 raise TableError("Unexpected trailing comma", lexer.peek().loc)
-    
+
     # Special case when argument list is empty or just contains self
     if lexer.peek().typ == TokenType.R_PAREN:
         _ = lexer.expect_type(TokenType.R_PAREN)
@@ -610,7 +458,7 @@ def parse_params(lexer: Lexer) -> list[Binding]:
     return params
 
 
-def parse_fun_def(lexer: Lexer) -> FunDef:
+def parse_fun_def(lexer: Lexer) -> table_ast.FunDef:
     """Parse a function definition.
 
     ``<fun_def> ::= <named_fun_sig> <block_stmt>``
@@ -624,12 +472,12 @@ def parse_fun_def(lexer: Lexer) -> FunDef:
     name, sig = parse_named_fun_sig(lexer)
 
     body = parse_block_stmt(lexer)
-    assert isinstance(body, BlockStmt), "parse_block_stmt returns BlockStmt"
+    assert isinstance(body, table_ast.BlockStmt), "parse_block_stmt returns BlockStmt"
 
-    return FunDef(name, sig, body)
+    return table_ast.FunDef(name, sig, body)
 
 
-def parse_import(lexer: Lexer) -> Import:
+def parse_import(lexer: Lexer) -> table_ast.Import:
     """Parse an import.
 
     ``<import> ::= "import" <ident> ("." <ident>)* ";"``
@@ -652,10 +500,10 @@ def parse_import(lexer: Lexer) -> Import:
         path.append(next_seg.val)
 
     _ = lexer.expect_type(TokenType.SEMICOLON)
-    return Import(path)
+    return table_ast.Import(path)
 
 
-def parse_named_fun_sig(lexer: Lexer) -> tuple[str, FunSig]:
+def parse_named_fun_sig(lexer: Lexer) -> tuple[str, table_ast.FunSig]:
     """Parse the start of a function definition or declaration.
 
     <named_fun_sig> ::= "fun" <ident> <params> (":" <type>)?
@@ -673,16 +521,16 @@ def parse_named_fun_sig(lexer: Lexer) -> tuple[str, FunSig]:
     # TODO: Parse generics here
 
     params = parse_params(lexer)
-    return_type = TableType(TableTypeEnum.NONE)
+    return_type = "none"
     if lexer.peek().typ == TokenType.COLON:
         _ = lexer.expect_type(TokenType.COLON)
         return_type = parse_type(lexer)
-    sig = FunSig(params, return_type)
+    sig = table_ast.FunSig(params, return_type)
 
     return (name.val, sig)
 
 
-def parse_fun_decl(lexer: Lexer) -> tuple[str, FunSig]:
+def parse_fun_decl(lexer: Lexer) -> tuple[str, table_ast.FunSig]:
     """Parse a function declaration.
 
     ``<fun_decl> ::= <named_fun_sig> ";"
@@ -698,7 +546,7 @@ def parse_fun_decl(lexer: Lexer) -> tuple[str, FunSig]:
     return sig
 
 
-def parse_interface(lexer: Lexer) -> Interface:
+def parse_interface(lexer: Lexer) -> table_ast.Interface:
     """Parse an interface definition.
 
     ``<interface> ::= "interface" <ident> "{" <fun_decl>+ "}"``
@@ -723,10 +571,10 @@ def parse_interface(lexer: Lexer) -> Interface:
     if len(functions) == 0:
         raise TableError("Expected at least one function declaration", r_brack.loc)
 
-    return Interface(name.val, functions)
+    return table_ast.Interface(name.val, functions)
 
 
-def parse_struct(lexer: Lexer) -> Struct:
+def parse_struct(lexer: Lexer) -> table_ast.Struct:
     """Parse a struct definition.
 
     ``<struct> ::= "struct" <ident> "{" (<struct_binding> | <fun_def>)+ "}"``
@@ -760,10 +608,10 @@ def parse_struct(lexer: Lexer) -> Struct:
             )
     _ = lexer.expect_type(TokenType.R_BRACK)
 
-    return Struct(name.val, fields, methods)
+    return table_ast.Struct(name.val, fields, methods)
 
 
-def parse_top_level(lexer: Lexer) -> TopLevel:
+def parse_top_level(lexer: Lexer) -> table_ast.TopLevel:
     """Parse a top-level definition or import.
 
     ``<top_level> ::= <const_def> | <fundef> | <import>``
@@ -792,7 +640,7 @@ def parse_top_level(lexer: Lexer) -> TopLevel:
         )
 
 
-def parse_source_file(lexer: Lexer) -> list[TopLevel]:
+def parse_source_file(lexer: Lexer) -> list[table_ast.TopLevel]:
     """Parse a list of top-level definitions or imports.
 
     :param lexer: The lexer to parse from.
