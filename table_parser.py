@@ -43,10 +43,16 @@ def parse_args(lexer: Lexer) -> list[table_ast.Expr]:
     return args
 
 
+def parse_array_literal(lexer: Lexer) -> table_ast.ArrayExpr:
+    assert False, "not implemented"
+
+
 def parse_factor(lexer: Lexer) -> table_ast.Expr:
     """Parse a factor.
 
-    ``<factor> ::= "(" <expr> ")" | <ident> | <num> | <str>``
+    ``<factor> ::= "(" <expr> ")" | <array> | <ident> | <num> | <str>
+    <array> ::= "[" (<expr> ("," <expr>)*)? "]"``
+
 
     :param lexer: The lexer to parse from.
     :raises TableError: Raised if parsing fails.
@@ -61,18 +67,28 @@ def parse_factor(lexer: Lexer) -> table_ast.Expr:
             expr = parse_expr(lexer)
             _ = lexer.expect_type(TokenType.R_PAREN)  # expect close paren
             return expr
+        case TokenType.L_SQUARE:
+            if lexer.peek().typ == TokenType.R_SQUARE:
+                _ = lexer.expect_type(TokenType.R_SQUARE)
+                return table_ast.ArrayExpr(list())
+            items = [parse_expr(lexer)]
+            while lexer.peek().typ == TokenType.COMMA:
+                _ = lexer.expect_type(TokenType.COMMA)
+                items.append(parse_expr(lexer))
+            _ = lexer.expect_type(TokenType.R_SQUARE)
+            return table_ast.ArrayExpr(items)
         case TokenType.IDENT:
             assert isinstance(tok.val, str), "token val should be str"
             return table_ast.IdentExpr(tok.val)
         case TokenType.INT_LIT:
             assert tok.val, "int literal value should be a string"
-            return table_ast.LiteralExpr("int", tok.val)
+            return table_ast.IntExpr(tok.val)
         case TokenType.FLOAT_LIT:
             assert tok.val, "float literal value should be a string"
-            return table_ast.LiteralExpr("float", tok.val)
+            return table_ast.FloatExpr(tok.val)
         case TokenType.STR_LIT:
             assert tok.val, "string literal value should be a string"
-            return table_ast.LiteralExpr("str", tok.val)
+            return table_ast.StrExpr(tok.val)
         case _:
             raise TableError(
                 f"Unexpected token when parsing factor: {tok.lexeme}", tok.loc

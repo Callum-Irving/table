@@ -31,9 +31,23 @@ class UnaryExpr:
 
 
 @dataclass
-class LiteralExpr:
-    typ: TableType
+class IntExpr:
     val: str
+
+
+@dataclass
+class FloatExpr:
+    val: str
+
+
+@dataclass
+class StrExpr:
+    val: str
+
+
+@dataclass
+class ArrayExpr:
+    items: list[Expr]
 
 
 @dataclass
@@ -65,7 +79,7 @@ class AssignExpr:
     value: Expr
 
 
-type Expr = AssignExpr | BinExpr | UnaryExpr | LiteralExpr | FunCall | IdentExpr | NameExpr
+type Expr = AssignExpr | BinExpr | UnaryExpr | FunCall | IdentExpr | NameExpr | IntExpr | FloatExpr | StrExpr | ArrayExpr
 
 
 class DefType(IntEnum):
@@ -202,10 +216,6 @@ def print_expr(expr: Expr, indent: int = 0):
             print(" " * indent + "UnaryExpr:")
             print(" " * (indent + 4) + "op:", op._name_)
             print_expr(data, indent + 4)
-        case LiteralExpr(typ, val):
-            print(" " * indent + "LiteralExpr:")
-            print_type(typ, indent + 4)
-            print(" " * (indent + 4) + "value:", val)
         case FunCall(name, args):
             print(" " * indent + "FunCall:")
             print_expr(name, indent + 4)
@@ -219,7 +229,7 @@ def print_expr(expr: Expr, indent: int = 0):
             print_expr(name, indent + 4)
             print(" " * (indent + 4) + subname)
         case _:
-            assert_never(expr)
+            assert False, "not implemented"
 
 
 def print_binding(binding: Binding, indent: int = 0):
